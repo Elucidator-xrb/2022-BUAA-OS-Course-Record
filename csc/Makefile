@@ -6,7 +6,6 @@ vpath %.c code
 fibo : main.o fibo.o
 	gcc -o fibo code/main.o code/fibo.o
 
-# main.o fibo.o : fibo.h
 main.o : main.c fibo.h
 	gcc -c -o code/main.o code/main.c -I "include/"
 fibo.o : fibo.c fibo.h
@@ -16,3 +15,10 @@ fibo.o : fibo.c fibo.h
 clean : 
 	rm code/*.o
 
+# Another Method
+# all :
+# 		$(MAKE) --directory="code"
+# 		gcc -o fibo code/main.o code/fibo.o
+#
+# clean :
+# 		$(MAKE) clean --directory="code"
