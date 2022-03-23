@@ -136,7 +136,10 @@ lp_Print(void (*output)(void *, char *, int),
 			Refer to other part (case 'b',case 'o' etc.) and func PrintNum to complete this part.
 			Think the difference between case 'd' and others. (hint: negFlag).
 		*/
-		if (num < 0) negFlag = 1;
+		if (num < 0) {
+			negFlag = 1;
+			num = -num;
+		}
 		length = PrintNum(buf, num, 10, negFlag, width, ladjust, padc, 0);
 		OUTPUT(arg, buf, length);
 		break;
