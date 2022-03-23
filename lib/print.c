@@ -85,7 +85,7 @@ lp_Print(void (*output)(void *, char *, int),
 	padc = ' ';
 	while (*fmt == '-' || *fmt == '0') {
 		if (*fmt == '-') ladjust = 1;
-		else padc = '0'';
+		else padc = '0';
 		++ fmt;
 	}
 	/* check for width */
