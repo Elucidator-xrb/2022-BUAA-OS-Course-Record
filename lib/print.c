@@ -90,16 +90,17 @@ lp_Print(void (*output)(void *, char *, int),
 	}
 	/* check for width */
 	width = 0;
-	while ('0' <= *fmt && *fmt <= '9') {
-		width = width * 10 + (int) *fmt;
+	while (IsDigit(*fmt)) {
+		width = width * 10 + Ctod(*fmt);
 		++ fmt;
 	}
 	/* check for precision */
-	prec = 0;
+	prec = 6;
 	if (*fmt == '.') {
 		++ fmt;
-		while ('0' <= *fmt && *fmt <= '9') {
-			prec = prec * 10 + (int) *fmt;
+		prec = 0;
+		while (IsDigit(*fmt)) {
+			prec = prec * 10 + Ctod(*fmt);
 			++ fmt;
 		}
 	}
