@@ -66,7 +66,13 @@ lp_Print(void (*output)(void *, char *, int),
         /* Part1: your code here */
 	{ 
 	    /* scan for the next '%' */
+//		char *fmt_cur = fmt;
+//		while (*fmt_cur != '%' && *fmt_cur != '\0') ++ fmt_cur;
 	    /* flush the string found so far */
+//		OUTPUT(arg, fmt, fmt_cur - fmt);
+//		fmt = fmt_cur;
+
+		/* self: read per byte, no buffer&flush */
 		if (*fmt != '%' && *fmt != '\0') {
 			OUTPUT(arg, fmt, 1);
 			++ fmt;
