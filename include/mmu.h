@@ -17,7 +17,7 @@
 #define PDMAP		(4*1024*1024)	// bytes mapped by a page directory entry
 #define PGSHIFT		12
 #define PDSHIFT		22		// log2(PDMAP)
-#define PDX(va)		((((u_long)(va))>>22) & 0x03FF)
+#define PDX(va)		((((u_long)(va))>>22) & 0x03FF) // 0x03FF: get last 10 bit
 #define PTX(va)		((((u_long)(va))>>12) & 0x03FF)
 #define PTE_ADDR(pte)	((u_long)(pte)&~0xFFF)
 
