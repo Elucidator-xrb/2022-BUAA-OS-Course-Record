@@ -10,7 +10,7 @@
 
 #define LOG2NENV	10
 #define NENV		(1<<LOG2NENV)
-#define ENVX(envid)	((envid) & (NENV - 1))
+#define ENVX(envid)	((envid) & (NENV - 1))	// same as & 0x3ff, but extensible
 #define GET_ENV_ASID(envid) (((envid)>> 11)<<6)
 
 // Values of env_status in struct Env
@@ -25,22 +25,23 @@ struct Env {
 	u_int env_parent_id;            // env_id of this env's parent
 	u_int env_status;               // Status of the environment
 	Pde  *env_pgdir;                // Kernel virtual address of page dir
-	u_int env_cr3;
-	LIST_ENTRY(Env) env_sched_link;
-        u_int env_pri;
+	u_int env_cr3;					// physical address of page dir
+	LIST_ENTRY(Env) env_sched_link;	// Runnable list
+    u_int env_pri;					// env's priority
+	
 	// Lab 4 IPC
 	u_int env_ipc_value;            // data value sent to us 
 	u_int env_ipc_from;             // envid of the sender  
 	u_int env_ipc_recving;          // env is blocked receiving
-	u_int env_ipc_dstva;		// va at which to map received page
-	u_int env_ipc_perm;		// perm of page mapping received
+	u_int env_ipc_dstva;			// va at which to map received page
+	u_int env_ipc_perm;				// perm of page mapping received
 
 	// Lab 4 fault handling
 	u_int env_pgfault_handler;      // page fault state
 	u_int env_xstacktop;            // top of exception stack
 
 	// Lab 6 scheduler counts
-	u_int env_runs;			// number of times been env_run'ed
+	u_int env_runs;					// number of times been env_run'ed
 	u_int env_nop;                  // align to avoid mul instruction
 };
 

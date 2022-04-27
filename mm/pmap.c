@@ -196,14 +196,17 @@ void page_init(void)
 	for (cur = pages; page2kva(cur) < freemem; ++cur) {
 		cur->pp_ref = 1;
 	}
-//printf("[trace]: PADDR(x):%lx, maxpa:%lx, page2kva(cur):%lx\n", 
-//						PADDR(freemem), maxpa, page2kva(cur));
+
 	/* Step 4: Mark the other memory as free. */
-	while (page2ppn(cur) < npage) { // page2ppn is more direct than page2pa
+	for (; page2ppn(cur) < npage; ++cur) {
+		if (page2kva(cur) == TIMESTACK - BY2PG) { // Protect
+			cur->pp_ref = 1;
+			continue;
+		}
 		cur->pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, cur, pp_link);
-		++ cur;
 	}
+	
 }
 
 /* Exercise 2.4 */
