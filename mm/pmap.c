@@ -380,7 +380,7 @@ struct Page *page_lookup(Pde *pgdir, u_long va, Pte **ppte)
 	}
 
 	/* Step 2: Get the corresponding Page struct. */
-
+//printf("Here pa:%x\n", *pte);
 	/* Hint: Use function `pa2page`, defined in include/pmap.h . */
 	ppage = pa2page(*pte);
 	if (ppte) {

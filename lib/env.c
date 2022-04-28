@@ -352,7 +352,7 @@ load_icode(struct Env *e, u_char *binary, u_int size)
     struct Page *p = NULL;
     u_long entry_point;
     u_long r;
-    u_long perm;
+    u_long perm = PTE_R;
 
     /* Step 1: alloc a page. */
 	if ((r = page_alloc(&p))) return r;
@@ -423,26 +423,28 @@ env_free(struct Env *e)
 
     /* Hint: Flush all mapped pages in the user portion of the address space */
     for (pdeno = 0; pdeno < PDX(UTOP); pdeno++) {
-printf("Where are you!!!! %d \n", pdeno);
+//printf("Where are you!!!! %d \n", pdeno);
         /* Hint: only look at mapped page tables. */
         if (!(e->env_pgdir[pdeno] & PTE_V)) {
             continue;
         }
+//printf("flag:%d pdeno:%x\n", e->env_pgdir[pdeno] & PTE_V, pdeno);
         /* Hint: find the pa and va of the page table. */
         pa = PTE_ADDR(e->env_pgdir[pdeno]);
         pt = (Pte *)KADDR(pa);
         /* Hint: Unmap all PTEs in this page table. */
         for (pteno = 0; pteno <= PTX(~0); pteno++)
             if (pt[pteno] & PTE_V) {
+//printf("in for-for: pteno:%d va:%x\n",pteno,(pdeno << PDSHIFT)|(pteno<<PGSHIFT));
                 page_remove(e->env_pgdir, (pdeno << PDSHIFT) | (pteno << PGSHIFT));
             }
         /* Hint: free the page table itself. */
         e->env_pgdir[pdeno] = 0;
-printf("[ ] cur pa:%x\n", pa);
+//printf("[ ] cur pa:%x\n", pa);
         page_decref(pa2page(pa));
-printf("[ ] after pa2page\n");
+//printf("[ ] after pa2page\n");
     }
-printf("out\n");
+//printf("out\n");
     /* Hint: free the page directory. */
     pa = e->env_cr3;
     e->env_pgdir = 0;
