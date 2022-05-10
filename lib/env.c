@@ -248,7 +248,7 @@ env_alloc(struct Env **new, u_int parent_id)
 
     /* Step 5: Remove the new Env from env_free_list. */
 	LIST_REMOVE(e, env_link);
-	LIST_INSERT_HEAD(&env_sched_list[0], e, env_sched_link); // 0 or 1 ?
+//	LIST_INSERT_HEAD(&env_sched_list[0], e, env_sched_link);
 	*new = e;
 
 	return 0;
@@ -393,6 +393,10 @@ env_create_priority(u_char *binary, int size, int priority)
     /* Step 3: Use load_icode() to load the named elf binary,
        and insert it into env_sched_list using LIST_INSERT_HEAD. */
 	load_icode(e, binary, size);
+//printf("[trace] before insert to env_sched_list\n");
+	//printf("%d\n", LIST_EMPTY(&env_sched_list[0]));
+	LIST_INSERT_HEAD(&env_sched_list[0], e, env_sched_link);
+//printf("[trace] insert success, end env_create_priority\n");
 }
 
 /* Overview:
