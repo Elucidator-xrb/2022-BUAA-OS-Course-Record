@@ -115,8 +115,8 @@ pgfault(u_int va)
 static void
 duppage(u_int envid, u_int pn)
 {
-	u_int addr;
-	u_int perm;
+	u_int addr = pn << PGSHIFT;
+	u_int perm = (*vpt)[pn] & 0xfff; // strongly puzzled at (*vpt)
 
 	//	user_panic("duppage not implemented");
 }
@@ -135,7 +135,6 @@ extern void __asm_pgfault_handler(void);
 int
 fork(void)
 {
-	// Your code here.
 	u_int newenvid;
 	extern struct Env *envs;
 	extern struct Env *env;
@@ -145,7 +144,7 @@ fork(void)
 	//The parent installs pgfault using set_pgfault_handler
 
 	//alloc a new alloc
-
+    newenvid = syscall_env_alloc();
 
 	return newenvid;
 }

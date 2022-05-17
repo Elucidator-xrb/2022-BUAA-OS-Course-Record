@@ -67,6 +67,10 @@ u_int sys_getenvid(void)
 /*** exercise 4.6 ***/
 void sys_yield(void)
 {
+    bcopy((void *)KERNEL_SP - sizeof(struct Trapframe),
+          (void *)TIMESTACK - sizeof(struct Trapframe),
+          sizeof(struct Trapframe));
+    sched_yield();
 }
 
 /* Overview:
@@ -147,6 +151,14 @@ int sys_mem_alloc(int sysno, u_int envid, u_int va, u_int perm)
 	int ret;
 	ret = 0;
 
+    if (va >= UTOP)     return -E_INVAL; // Invalid va
+    if (perm & PTE_COW) return -E_INVAL; // Invalid perm
+    if ((ret = envid2env(envid, &env, 1)) return ret; // Get env failed
+    if ((ret = page_alloc(&ppage)))       return ret; // Get page failed
+    if ((ret = page_insert(env->env_pgdir, ppage, va, perm))) return ret; 
+    // map failed
+
+    return ret;
 }
 
 /* Overview:
@@ -154,7 +166,7 @@ int sys_mem_alloc(int sysno, u_int envid, u_int va, u_int perm)
  * at 'dstva' in dstid's address space with permission 'perm'.
  * Perm must have PTE_V to be valid.
  * (Probably we should add a restriction that you can't go from
- * non-writable to writable?)
+ * non-writable to writable?) --> you asked me?
  *
  * Post-Condition:
  * 	Return 0 on success, < 0 on error.
@@ -168,8 +180,7 @@ int sys_mem_map(int sysno, u_int srcid, u_int srcva, u_int dstid, u_int dstva,
 {
 	int ret;
 	u_int round_srcva, round_dstva;
-	struct Env *srcenv;
-	struct Env *dstenv;
+	struct Env *srcenv, *dstenv;
 	struct Page *ppage;
 	Pte *ppte;
 
@@ -178,7 +189,18 @@ int sys_mem_map(int sysno, u_int srcid, u_int srcva, u_int dstid, u_int dstva,
 	round_srcva = ROUNDDOWN(srcva, BY2PG);
 	round_dstva = ROUNDDOWN(dstva, BY2PG);
 
-    //your code here
+    if (srcva >= UTOP || dstva >= UTOP) return -E_INVAL;
+    if ((perm & PTE_V) == 0)            return -E_INVAL;
+    if ((ret = envid2env(srcid, &srcenv, 1))) return ret;
+    if ((ret = envid2env(dstid, &dstenv, 1))) return ret;
+
+    ppage = page_lookup(srcenv->env_pgdir, round_srcva, &ppte);
+    if (ppage == NULL) return -E_INVAL;
+    if ((*ppte & PTE_R) == 0 && (perm & PTE_R) == 1) return -E_INVAL;//-->I agree.
+    ppage = pa2page(PTE_ADDR(*ppte));
+    if ((ret = page_insert(dstenv->env_pgdir, ppage, round_dstva, perm)))
+        return ret;
+    // page_alloc not used
 
 	return ret;
 }
@@ -195,9 +217,12 @@ int sys_mem_map(int sysno, u_int srcid, u_int srcva, u_int dstid, u_int dstva,
 /*** exercise 4.5 ***/
 int sys_mem_unmap(int sysno, u_int envid, u_int va)
 {
-	// Your code here.
 	int ret;
 	struct Env *env;
+
+    if (va >= UTOP) return -E_INVAL;
+    if ((ret = envid2env(envid, &env, 1))) return ret;
+    page_remove(env->env_pgdir, va);
 
 	return ret;
 	//	panic("sys_mem_unmap not implemented");
@@ -218,10 +243,16 @@ int sys_mem_unmap(int sysno, u_int envid, u_int va)
 /*** exercise 4.8 ***/
 int sys_env_alloc(void)
 {
-	// Your code here.
 	int r;
 	struct Env *e;
 
+    if ((r = env_alloc(&e, curenv->env_id))) return r;
+    e->env_status = ENV_NOT_RUNNABLE;
+    e->env_pri    = curenv->env_pri;
+    bcopy((void *)KERNEL_SP - sizeof(struct Trapframe),
+          (void *)&(e->env_tf), sizeof(struct Trapframe));
+    e->env_tf.pc  = e->env_tf.cp0_epc;
+    e->env_tf.regs[2] = 0; // $v0
 
 	return e->env_id;
 	//	panic("sys_env_alloc not implemented");
@@ -299,6 +330,12 @@ void sys_panic(int sysno, char *msg)
 /*** exercise 4.7 ***/
 void sys_ipc_recv(int sysno, u_int dstva)
 {
+    if (dstva >= UTOP) return;
+
+    curenv->env_ipc_recving = 1;
+    curenv->env_ipc_dstva   = dstva;
+    curenv->env_status      = ENV_NOT_RUNNABLE;
+    sys_yield();
 }
 
 /* Overview:
@@ -322,10 +359,26 @@ void sys_ipc_recv(int sysno, u_int dstva)
 int sys_ipc_can_send(int sysno, u_int envid, u_int value, u_int srcva,
 					 u_int perm)
 {
-
 	int r;
 	struct Env *e;
 	struct Page *p;
+
+    if (srcva >= UTOP) return -E_INVAL;
+    if ((r = envid2env(envid, &e, 0))) return r;
+    if (e->env_ipc_recving == 0) return -E_IPC_NOT_RECV;
+
+    e->env_ipc_value = value;
+    e->env_ipc_from  = curenv->env_id;
+    e->env_ipc_perm  = perm;
+    e->env_ipv_recving = 0;
+    e->env_status = ENV_RUNNABLE;
+
+    if (srcva != 0) {
+        Pte *pte;
+        p = page_lookup(curenv->env_pgdir, srcva, &pte);
+        if (p == NULL) return -E_INVAL;
+        page_insert(e->env_pgidr, p, e->env_ipc_dstva, perm);
+    }
 
 	return 0;
 }
