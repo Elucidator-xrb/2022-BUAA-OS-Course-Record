@@ -290,8 +290,6 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
 			if ((r = page_alloc(&p))) return r;
 			page_insert(env->env_pgdir, p, va, PTE_R);
 		}
-//printf("[trace] before target 1\n");
-//printf("[trace] va:%x page2kva(p)+offset:%x\n", va, page2kva(p)+offset);
 		size = MIN(bin_size, BY2PG - offset); // start unaligned
 		bcopy((void *)bin, (void *)(page2kva(p) + offset), size); 
 						// va vs page2kva(p)+offset
@@ -310,10 +308,8 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
      * hint: variable `i` has the value of `bin_size` now! */
 	offset = va + i - ROUNDDOWN(va + i, BY2PG);
 	if (offset) {
-//printf("[trace] before target 2\n");
-//printf("[trace] va+i:%x page2kva(p)+offset:%x\n", va+i, page2kva(p)+offset);
 		size = MIN(sgsize - i, BY2PG - offset);
-		bzero((void *)(page2kva(p) + offset), size);
+		//bzero((void *)(page2kva(p) + offset), size);
 		i += size;
 	}
     while (i < sgsize) {
@@ -321,7 +317,7 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
 		page_insert(env->env_pgdir, p, va + i, PTE_R);
 
 		size = MIN(sgsize - i, BY2PG);
-		bzero((void *)page2kva(p), size);
+		//bzero((void *)page2kva(p), size);
 		i += size;
     }
 
