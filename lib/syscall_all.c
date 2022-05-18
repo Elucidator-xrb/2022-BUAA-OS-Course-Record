@@ -153,10 +153,11 @@ int sys_mem_alloc(int sysno, u_int envid, u_int va, u_int perm)
 	int ret;
 	ret = 0;
 
-    if (va >= UTOP)     return -E_INVAL; // Invalid va
-    if (perm & PTE_COW) return -E_INVAL; // Invalid perm
-    if ((ret = envid2env(envid, &env, 1))) return ret; // Get env failed
-    if ((ret = page_alloc(&ppage)))        return ret; // Get page failed
+    if (va >= UTOP)                          return -E_INVAL; // Invalid va
+    if ((perm & PTE_COW) || !(perm & PTE_V)) return -E_INVAL; // Invalid perm
+
+    if ((ret = envid2env(envid, &env, 1)))  return ret; // Get env failed
+    if ((ret = page_alloc(&ppage)))         return ret; // Get page failed
     if ((ret = page_insert(env->env_pgdir, ppage, va, perm))) return ret; 
     // map failed
 
