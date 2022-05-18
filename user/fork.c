@@ -82,17 +82,25 @@ void user_bzero(void *v, u_int n)
 static void
 pgfault(u_int va)
 {
-	u_int *tmp;
-	//	writef("fork.c:pgfault():\t va:%x\n",va);
+    u_int tmp;
+    // writef("fork.c:pgfault():\t va:%x\n",va);
 
-	//map the new page at a temporary place
+    if (((*vpt)[VPN(va)] & PTE_COW) == 0)
+        user_panic("user pgfault: not a copy-on-write page\n");
 
-	//copy the content
+    //map the new page at a temporary place
+    va = ROUNDDOWN(va, BY2PG);
+    tmp = USTACKTOP;     // 0x7f3f_e000 ~ 0x7fef_f000 Invalid Memory
+    syscall_mem_alloc(0, tmp, PTE_V | PTE_R);
 
-	//map the page on the appropriate place
+    //copy the content
+    user_bcopy((void *)va, (void *)tmp, BY2PG);
 
-	//unmap the temporary place
+    //map the page on the appropriate place
+    syscall_mem_map(0, tmp, 0, va, PTE_V | PTE_R);
 
+    //unmap the temporary place
+    syscall_mem_unmap(0, tmp);
 }
 
 /* Overview:
@@ -116,8 +124,14 @@ static void
 duppage(u_int envid, u_int pn)
 {
 	u_int addr = pn << PGSHIFT;
-	u_int perm = (*vpt)[pn] & 0xfff; // strongly puzzled at (*vpt)
+	u_int perm = (*vpt)[pn] & 0xfff; // (*vpt) --> vpt[0]
 
+    if ((perm & PTE_R) && !(perm & PTE_LIBRARY) && !(perm & PTE_COW)) {
+        syscall_mem_map(0, addr, envid, addr, perm | PTE_COW);
+        syscall_mem_map(0, addr,     0, addr, perm | PTE_COW);
+    } else {
+        syscall_mem_map(0, addr, envid, addr, perm);
+    }
 	//	user_panic("duppage not implemented");
 }
 
@@ -137,14 +151,28 @@ fork(void)
 {
 	u_int newenvid;
 	extern struct Env *envs;
-	extern struct Env *env;
+	extern struct Env *env;     // From user/libos.c
 	u_int i;
 
-
 	//The parent installs pgfault using set_pgfault_handler
+    set_pgfault_handler(pgfault);
 
 	//alloc a new alloc
     newenvid = syscall_env_alloc();
+    if (newenvid == 0) { // when son_env awake in fork
+        env = envs + ENVX(syscall_getenvid());
+        return 0;
+    }
+
+    // duppage father-env addr space
+    for (i = 0; i < UTOP - 2 * BY2PG; i += BY2PG) {
+        if (((*vpd)[i>>PDSHIFT] & PTE_V) && ((*vpt)[i>>PGSHIFT] & PTE_V))
+            duppage(newenvid, VPN(i));
+    }
+
+    syscall_mem_alloc(newenvid, UXSTACKTOP - BY2PG, PTE_V | PTE_R);
+    syscall_set_pgfault_handler(newenvid, __asm_pgfault_handler, UXSTACKTOP);
+    syscall_set_env_status(newenvid, ENV_RUNNABLE);
 
 	return newenvid;
 }

@@ -116,10 +116,12 @@ int sys_env_destroy(int sysno, u_int envid)
 /*** exercise 4.12 ***/
 int sys_set_pgfault_handler(int sysno, u_int envid, u_int func, u_int xstacktop)
 {
-	// Your code here.
 	struct Env *env;
 	int ret;
 
+    if ((ret = envid2env(envid, &env, 1))) return ret;
+    env->env_pgfault_handler = func;
+    env->env_xstacktop = xstacktop;
 
 	return 0;
 	//	panic("sys_set_pgfault_handler not implemented");
@@ -153,8 +155,8 @@ int sys_mem_alloc(int sysno, u_int envid, u_int va, u_int perm)
 
     if (va >= UTOP)     return -E_INVAL; // Invalid va
     if (perm & PTE_COW) return -E_INVAL; // Invalid perm
-    if ((ret = envid2env(envid, &env, 1)) return ret; // Get env failed
-    if ((ret = page_alloc(&ppage)))       return ret; // Get page failed
+    if ((ret = envid2env(envid, &env, 1))) return ret; // Get env failed
+    if ((ret = page_alloc(&ppage)))        return ret; // Get page failed
     if ((ret = page_insert(env->env_pgdir, ppage, va, perm))) return ret; 
     // map failed
 
@@ -273,9 +275,18 @@ int sys_env_alloc(void)
 /*** exercise 4.14 ***/
 int sys_set_env_status(int sysno, u_int envid, u_int status)
 {
-	// Your code here.
 	struct Env *env;
 	int ret;
+
+    if (status != ENV_RUNNABLE && status != ENV_NOT_RUNNABLE && status != ENV_FREE)
+        return -E_INVAL;
+    if ((ret = envid2env(envid, &env, 1))) return ret;
+
+    if (status == ENV_FREE) env_destroy(env);
+    else {
+        env->env_status = status;
+        // put it into sched_list ??
+    }
 
 	return 0;
 	//	panic("sys_env_set_status not implemented");
@@ -370,14 +381,14 @@ int sys_ipc_can_send(int sysno, u_int envid, u_int value, u_int srcva,
     e->env_ipc_value = value;
     e->env_ipc_from  = curenv->env_id;
     e->env_ipc_perm  = perm;
-    e->env_ipv_recving = 0;
+    e->env_ipc_recving = 0;
     e->env_status = ENV_RUNNABLE;
 
     if (srcva != 0) {
         Pte *pte;
         p = page_lookup(curenv->env_pgdir, srcva, &pte);
         if (p == NULL) return -E_INVAL;
-        page_insert(e->env_pgidr, p, e->env_ipc_dstva, perm);
+        page_insert(e->env_pgdir, p, e->env_ipc_dstva, perm);
     }
 
 	return 0;
