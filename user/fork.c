@@ -165,7 +165,7 @@ fork(void)
     }
 
     // duppage father-env addr space
-    for (i = 0; i < UTOP - 2 * BY2PG; i += BY2PG) {
+    for (i = UTEXT; i < USTACKTOP; i += BY2PG) {
         if (((*vpd)[i>>PDSHIFT] & PTE_V) && ((*vpt)[i>>PGSHIFT] & PTE_V))
             duppage(newenvid, VPN(i));
     }
