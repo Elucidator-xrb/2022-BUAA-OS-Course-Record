@@ -284,6 +284,7 @@ int sys_set_env_status(int sysno, u_int envid, u_int status)
         return -E_INVAL;
     if ((ret = envid2env(envid, &env, 0))) return ret;
 
+	// why remove ENV_NOT_RUNNABLE? it won't be sched in sched_yield. puzzled
     if (env->env_status != ENV_RUNNABLE && status == ENV_RUNNABLE)
         LIST_INSERT_HEAD(env_sched_list, env, env_sched_link);
     if (env->env_status == ENV_RUNNABLE && status != ENV_RUNNABLE)
