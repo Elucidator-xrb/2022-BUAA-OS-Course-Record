@@ -177,8 +177,8 @@ env_setup_vm(struct Env *e)
 	pgdir = (Pde *)page2kva(p);
 
     /* Step 2: Zero pgdir's field before UTOP. */
-	bzero((void *)pgdir, PDX(UTOP) * sizeof(Pde));
-//	for (i = 0; i < PDX(UTOP); ++i) pgdir[i] = 0;
+    for (i = 0; i < PDX(UTOP); ++i) pgdir[i] = 0;
+		// bzero((void *)pgdir, PDX(UTOP) * sizeof(Pde)); daren't risk
 
     /* Step 3: Copy kernel's boot_pgdir to pgdir. */
     /* Hint:
@@ -187,10 +187,13 @@ env_setup_vm(struct Env *e)
      *  See ./include/mmu.h for layout.
      *  Can you use boot_pgdir as a template?
      */
-	int s = PDX(UTOP);
-	bcopy((void *)(boot_pgdir + s), (void *)(pgdir + s), PTE2PT - s);
-//	for (i = PDX(UTOP); i < PTE2PT; ++i) 
-//		if (i != PDX(UVPT)) pgdir[i] = boot_pgdir[i];
+    for (; i < PDX(UVPT); ++i) pgdir[i] = boot_pgdir[i];
+		/* method conduct in lab3 */
+		//int s = PDX(UTOP);
+		//bcopy((void *)(boot_pgdir + s), (void *)(pgdir + s), PTE2PT - s);
+		/* try 2 in lab3*/
+		//for (i = PDX(UTOP); i < PTE2PT; ++i) 
+		//	if (i != PDX(UVPT)) pgdir[i] = boot_pgdir[i];
 
 	e->env_pgdir = pgdir;
 	e->env_cr3 = PADDR(pgdir);
@@ -235,16 +238,16 @@ env_alloc(struct Env **new, u_int parent_id)
 
     /* Step 2: Call a certain function (has been completed just now) to init kernel memory layout for this new Env.
      *The function mainly maps the kernel address to this new Env address. */
-	env_setup_vm(e);
+    env_setup_vm(e);
 
     /* Step 3: Initialize every field of new Env with appropriate values.*/
-	e->env_id = mkenvid(e);
-	e->env_status = ENV_RUNNABLE;
-	e->env_parent_id = parent_id;
+    e->env_id = mkenvid(e);
+    e->env_status = ENV_RUNNABLE;
+    e->env_parent_id = parent_id;
 
     /* Step 4: Focus on initializing the sp register and cp0_status of env_tf field, located at this new Env. */
     e->env_tf.cp0_status = 0x1000100c;	// cannot modify directly to 0x1000_1004
-	e->env_tf.regs[29] = USTACKTOP;
+    e->env_tf.regs[29] = USTACKTOP;
 
     /* Step 5: Remove the new Env from env_free_list. */
 	LIST_REMOVE(e, env_link);

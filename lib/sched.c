@@ -61,7 +61,8 @@ void sched_yield(void)
 			e = LIST_FIRST(&env_sched_list[point]);
 			LIST_REMOVE(e, env_sched_link);
 			if (e->env_status == ENV_RUNNABLE) break;
-			LIST_INSERT_TAIL(&env_sched_list[1-point], e, env_sched_link);
+			if (e->env_status != ENV_FREE)
+				LIST_INSERT_TAIL(&env_sched_list[1-point], e, env_sched_link);
 		}
 		count = e->env_pri;
 //printf("Switch Env End. count = %d, point = %d\n", count, point);

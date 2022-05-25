@@ -254,8 +254,8 @@ int sys_env_alloc(void)
     e->env_pri    = curenv->env_pri;
     bcopy((void *)KERNEL_SP - sizeof(struct Trapframe),
           (void *)&(e->env_tf), sizeof(struct Trapframe));
-    e->env_tf.pc  = e->env_tf.cp0_epc;
-    e->env_tf.regs[2] = 0; // $v0
+    e->env_tf.pc  = e->env_tf.cp0_epc; // has already +4 in trap.h
+    e->env_tf.regs[2] = 0; // $v0 fork in son_env should return 0
 
 	return e->env_id;
 	//	panic("sys_env_alloc not implemented");
@@ -278,16 +278,18 @@ int sys_set_env_status(int sysno, u_int envid, u_int status)
 {
 	struct Env *env;
 	int ret;
+    extern struct Env_list env_sched_list[];
 
     if (status != ENV_RUNNABLE && status != ENV_NOT_RUNNABLE && status != ENV_FREE)
         return -E_INVAL;
     if ((ret = envid2env(envid, &env, 0))) return ret;
 
-    if (status == ENV_FREE) env_destroy(env);
-    else {
-        env->env_status = status;
-        // put it into sched_list ??
-    }
+    if (env->env_status != ENV_RUNNABLE && status == ENV_RUNNABLE)
+        LIST_INSERT_HEAD(env_sched_list, env, env_sched_link);
+    if (env->env_status == ENV_RUNNABLE && status != ENV_RUNNABLE)
+        LIST_REMOVE(env, env_sched_link);
+
+    env->env_status = status;
 
 	return 0;
 	//	panic("sys_env_set_status not implemented");
