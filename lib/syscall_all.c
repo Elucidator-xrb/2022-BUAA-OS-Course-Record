@@ -423,9 +423,16 @@ int sys_ipc_can_send(int sysno, u_int envid, u_int value, u_int srcva,
  *	* ---------------------------------*
  */
  /*** exercise 5.1 ***/
+#define check_csl(a, len) (0x10000000 <= (a) && (a)+(len) <= 0x10000020)
+#define check_ide(a, len) (0x13000000 <= (a) && (a)+(len) <= 0x13004200)
+#define check_rtc(a, len) (0x15000000 <= (a) && (a)+(len) <= 0x15000200)
+
 int sys_write_dev(int sysno, u_int va, u_int dev, u_int len)
 {
-        // Your code here
+    if (!(check_csl(dev, len) || check_ide(dev, len) || check_rtc(dev, len)))
+        return -E_INVAL;
+    bcopy(va, 0xa0000000 + dev, len);
+    return 0;
 }
 
 /* Overview:
@@ -447,5 +454,8 @@ int sys_write_dev(int sysno, u_int va, u_int dev, u_int len)
  /*** exercise 5.1 ***/
 int sys_read_dev(int sysno, u_int va, u_int dev, u_int len)
 {
-        // Your code here
+    if (!(check_csl(dev, len) || check_ide(dev, len) || check_rtc(dev, len)))
+        return -E_INVAL;
+    bcopy(0xa0000000 + dev, va, len);
+    return 0;
 }
