@@ -194,7 +194,7 @@ int make_link_block(struct File *dirf, int nblk) {
 
 // Overview:
 //      Create new block pointer for a file under sepcified directory.
-//      Notice that when we delete a file, we do not re-arrenge all
+//      Notice that when we delete a file, we do not re-arrange all
 //      other file pointers, so we should be careful of existing empty
 //      file pointers
 //
@@ -211,14 +211,20 @@ struct File *create_file(struct File *dirf) {
     int i, bno, found;
     int nblk = dirf->f_size / BY2BLK;
 
-    // Your code here
     // Step1: According to different range of nblk, make classified discussion to
     //        calculate the correct block number.
+    for (i = 0; i < nblk; ++i) {
+        if (i < NDIRECT) bno = dirf->f_direct[i];
+        else             bno = ((int *)(disk[dirf->f_indirect].data))[i];
+        dirblk = (struct File *)disk[bno].data;
 
-
-    // Step2: Find an unused pointer
-
-
+        // Step2: Find an unused pointer
+        for (found = 0; found < FILE2BLK; ++found)
+            if (dirblk[found].f_name[0] == '\0') return &dirblk[found];
+    }
+    
+    bno = make_link_block(dirf, nblk);
+    return (struct File *)disk[bno].data;
 }
 
 // Write file to disk under specified dir.
