@@ -209,20 +209,21 @@ int make_link_block(struct File *dirf, int nblk) {
 struct File *create_file(struct File *dirf) {
     struct File *dirblk;
     int i, bno, found;
-    int nblk = dirf->f_size / BY2BLK;
+    int nblk = dirf->f_size / BY2BLK; // nblk of dirf
 
-    // Step1: According to different range of nblk, make classified discussion to
-    //        calculate the correct block number.
     for (i = 0; i < nblk; ++i) {
+        // Step1: According to different range of nblk
+        // make classified discussion to calculate the correct block number.
         if (i < NDIRECT) bno = dirf->f_direct[i];
         else             bno = ((int *)(disk[dirf->f_indirect].data))[i];
         dirblk = (struct File *)disk[bno].data;
 
-        // Step2: Find an unused pointer
+        // Step2: Find an unused File in current(bno) block.
         for (found = 0; found < FILE2BLK; ++found)
             if (dirblk[found].f_name[0] == '\0') return &dirblk[found];
     }
     
+    // not found, make a new block;
     bno = make_link_block(dirf, nblk);
     return (struct File *)disk[bno].data;
 }
