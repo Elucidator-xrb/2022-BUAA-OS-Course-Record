@@ -206,7 +206,7 @@ void
 free_block(u_int blockno)
 {
 	// Step 1: Check if the parameter `blockno` is valid (`blockno` can't be zero).
-    if (blockno == 0 || (super && blockno >= super->s_nblocks)) return;
+    if (blockno == 0 || super == 0 || blockno >= super->s_nblocks) return;
 	// Step 2: Update the flag bit in bitmap.
 	// you can use bit operation to update flags, such as  a |= (1 << n) .
     bitmap[blockno >> 5] |= (1 << (blockno & 0x1f));
