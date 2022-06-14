@@ -67,30 +67,32 @@ err1:	syscall_mem_unmap(0, (u_int)fd0);
 err:	return r;
 }
 
+/* Overview:
+ * Check pageref(fd) and pageref(p),
+ * returning 1 if they're the same, 0 otherwise.
+ * 
+ * The logic here is that pageref(p) is the total
+ * number of readers *and* writers, whereas pageref(fd)
+ * is the number of file descriptors like fd (readers if fd is
+ * a reader, writers if fd is a writer).
+ * 
+ * If the number of file descriptors like fd is equal
+ * to the total number of readers and writers, then
+ * everybody left is what fd is.  So the other end of
+ * the pipe is closed.
+ */
+/*** exercise 6.2 ***/
 static int
 _pipeisclosed(struct Fd *fd, struct Pipe *p)
 {
-	// Your code here.
-	// 
-	// Check pageref(fd) and pageref(p),
-	// returning 1 if they're the same, 0 otherwise.
-	// 
-	// The logic here is that pageref(p) is the total
-	// number of readers *and* writers, whereas pageref(fd)
-	// is the number of file descriptors like fd (readers if fd is
-	// a reader, writers if fd is a writer).
-	// 
-	// If the number of file descriptors like fd is equal
-	// to the total number of readers and writers, then
-	// everybody left is what fd is.  So the other end of
-	// the pipe is closed.
 	int pfd,pfp,runs;
-	
-
-
-
-	user_panic("_pipeisclosed not implemented");
-//	return 0;
+    do {
+        runs = env->env_runs; // env is defined in user/libos.c
+        pfd = pageref(fd);
+        pfp = pageref(p);
+    } while ((env->env_runs) != runs);
+    return pfd == pfp;
+	// user_panic("_pipeisclosed not implemented");
 }
 
 int
@@ -102,52 +104,74 @@ pipeisclosed(int fdnum)
 
 	if ((r = fd_lookup(fdnum, &fd)) < 0)
 		return r;
-	p = (struct Pipe*)fd2data(fd);
+	p = (struct Pipe *)fd2data(fd);
 	return _pipeisclosed(fd, p);
 }
 
+/* Overviews:
+ * See the lab text for a description of what piperead needs to do.
+ * Write a loop that transfers one byte at a time. 
+ * If you decide you need to yield (because the pipe is empty), 
+ * only yield if you have not yet copied any bytes.  
+ * (If you have copied some bytes, return what you have instead of yielding.)
+ * If the pipe is empty and closed and you didn't copy any data out, return 0.
+ *
+ * Hint:
+ * Use _pipeisclosed to check whether the pipe is closed.
+ */
+/*** exercise 6.2 ***/
 static int
 piperead(struct Fd *fd, void *vbuf, u_int n, u_int offset)
 {
-	// Your code here.  See the lab text for a description of
-	// what piperead needs to do.  Write a loop that 
-	// transfers one byte at a time.  If you decide you need
-	// to yield (because the pipe is empty), only yield if
-	// you have not yet copied any bytes.  (If you have copied
-	// some bytes, return what you have instead of yielding.)
-	// If the pipe is empty and closed and you didn't copy any data out, return 0.
-	// Use _pipeisclosed to check whether the pipe is closed.
 	int i;
 	struct Pipe *p;
 	char *rbuf;
-	
 
-
-	user_panic("piperead not implemented");
-//	return -E_INVAL;
+    p = (struct Pipe *) fd2data(fd);
+    rbuf = (char *) vbuf;
+    for (i = 0; i < n; ++i) {
+        while (p->p_rpos >= p->p_wpos) {
+            if (_pipeisclosed(fd, p) || i > 0) return i;
+            syscall_yield();
+        }
+        rbuf[i] = p->p_buf[p->p_rpos % BY2PIPE];
+        p->p_rpos++;
+    }
+    return n;
+	// user_panic("piperead not implemented");
 }
 
+/* Overviews:
+ * See the lab text for a description of what pipewrite needs to do. 
+ * Write a loop that transfers one byte at a time. 
+ * Unlike in read, it is not okay to write only some of the data.  
+ * If the pipe fills and you've only copied some of the data, 
+ *    wait for the pipe to empty and then keep copying.
+ * If the pipe is full and closed, return 0.
+ * Hint:
+ * Use _pipeisclosed to check whether the pipe is closed.
+ */
+/*** exercise 6.2 ***/
 static int
 pipewrite(struct Fd *fd, const void *vbuf, u_int n, u_int offset)
 {
-	// Your code here.  See the lab text for a description of what 
-	// pipewrite needs to do.  Write a loop that transfers one byte
-	// at a time.  Unlike in read, it is not okay to write only some
-	// of the data.  If the pipe fills and you've only copied some of
-	// the data, wait for the pipe to empty and then keep copying.
-	// If the pipe is full and closed, return 0.
-	// Use _pipeisclosed to check whether the pipe is closed.
 	int i;
 	struct Pipe *p;
 	char *wbuf;
-	
 
-//	return -E_INVAL;
-	
-	
-	user_panic("pipewrite not implemented");
-
-	return n;
+    p = (struct Pipe *) fd2data(fd);
+    wbuf = (char *) vbuf;
+    for (i = 0; i < n; ++i) {
+        while (p->p_wpos - p->p_rpos == BY2PIPE) {
+            // wpos at buf-max, rpos at 0: next write will cover unread content.
+            if (_pipeisclosed(fd, p)) return 0;
+            syscall_yield();
+        }
+        p->p_buf[p->p_wpos % BY2PIPE] = wbuf[i];
+        p->p_wpos++;
+    }
+    return n;
+	// user_panic("pipewrite not implemented");
 }
 
 static int
@@ -159,10 +183,17 @@ pipestat(struct Fd *fd, struct Stat *stat)
 
 }
 
+/* Overviews:
+ * Think over the sequence of two syscall_mem_unmap for fd & pipe
+ * due to the indeterminate interrupt of CC
+ * fd first, than turns to pipe
+ */
+/*** exercise 6.3 ***/
 static int
 pipeclose(struct Fd *fd)
 {
-	syscall_mem_unmap(0, fd2data(fd));
-	return 0;
+    syscall_mem_unmap(0, fd);
+    syscall_mem_unmap(0, fd2data(fd));
+    return 0;
 }
 
