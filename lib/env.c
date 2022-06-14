@@ -279,15 +279,20 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
 {
     struct Env *env = (struct Env *)user_data;
     struct Page *p = NULL;
-    u_long i = 0;
+    u_long i;
     int r;
     u_long offset = va - ROUNDDOWN(va, BY2PG);
 
-	int size;
+	int size = 0;
+
+	/*
+     *|___BY2PG___|___BY2PG___|___BY2PG___|___BY2PG___|___BY2PG___|
+     *        |<---       bin_size      --->|<---  .bss  --->|
+     *        |<---                  sgsize              --->|
+     */
 
     /* Step 1: load all content of bin into memory. */
-	// va unaligned with page
-	if (offset) {
+	if (offset) {  // va unaligned with page
 		p = page_lookup(env->env_pgdir, va, NULL); // find va's Page
 		if (p == 0) { // the unaligned page is also not used
 			if ((r = page_alloc(&p))) return r;
@@ -295,14 +300,11 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
 		}
 		size = MIN(bin_size, BY2PG - offset); // start unaligned
 		bcopy((void *)bin, (void *)(page2kva(p) + offset), size); 
-						// va vs page2kva(p)+offset
-		i = size;
 	}
 
-    for (; i < bin_size; i += size) {
+    for (i = size; i < bin_size; i += size) {
 		if ((r = page_alloc(&p))) return r;
 		page_insert(env->env_pgdir, p, va + i, PTE_R);
-		
 		size = MIN(bin_size - i, BY2PG);
 		bcopy((void *)bin + i, (void *)page2kva(p), size);
     }
@@ -318,7 +320,6 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
     while (i < sgsize) {
 		if ((r = page_alloc(&p))) return r;
 		page_insert(env->env_pgdir, p, va + i, PTE_R);
-
 		size = MIN(sgsize - i, BY2PG);
 		//bzero((void *)page2kva(p), size);
 		i += size;
