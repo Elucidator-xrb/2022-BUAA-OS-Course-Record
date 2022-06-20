@@ -98,13 +98,59 @@ int usr_is_elf_format(u_char *binary){
     return 0;
 }
 
+/* Hint: maybe this function is useful 
+ *       If you want to use this func, you should fill it ,it's not hard
+ */
+/*** for exercise 6.5 ***/
 int 
-usr_load_elf(int fd , Elf32_Phdr *ph, int child_envid){
-	//Hint: maybe this function is useful 
-	//      If you want to use this func, you should fill it ,it's not hard
+usr_load_elf(int fd, Elf32_Phdr *ph, int child_envid){
+	// Similar to load_icode_mapper
+	u_long va = ph->p_vaddr;
+	u_int32_t seg_size = ph->p_memsz;
+	u_int32_t bin_size = ph->p_filesz;
+	u_char *bin;
+
+	u_long i;
+	u_long tmp = USTACKTOP; 
+	// Remeber the one "Invalid memory" page above USTACKTOP ?
+	int r;
+	int size = 0;
+	u_long offset = va - ROUNDDOWN(va, BY2PG);
+	if ((r = read_map(fd, ph->p_offset, &bin))) return r;
+
+	if (offset) {
+		if ((r = syscall_mem_alloc(child_envid, va, PTE_V | PTE_R)))
+			return r;
+		if ((r = syscall_mem_map(child_envid, va, 0, tmp, PTE_V | PTE_R)))
+			return r;
+		size = MIN(bin_size, BY2PG - offset);
+		user_bcopy(bin, tmp + offset, size);
+		if ((r = syscall_mem_unmap(0, tmp))) return r;
+	}
+
+	for (i = size; i < bin_size; i += BY2PG) { //<= change from size to BY2PG
+		if ((r = syscall_mem_alloc(child_envid, va + i, PTE_V | PTE_R)))
+			return r;
+		if ((r = syscall_mem_map(child_envid, va + i, 0, tmp, PTE_V | PTE_R)))
+			return r;
+		size = MIN(bin_size - i, BY2PG);
+		user_bcopy(bin + i, tmp, size);
+		if ((r = syscall_mem_unmap(0, tmp))) return r;
+	}
+	// Needn't worry the cases when "end of bin_size" unaligned with Page, 
+	// for the guidebook promise to fill the rest of the Page with 0.
+	// So there was a redundant part of code in Lab3, get rid of it here!
+
+	while (i < sgsize) {
+		if ((r = syscall_mem_alloc(child_envid, va + i, PTE_V | PTE_R)))
+			return r;
+		i += BY2PG;
+	}
+
 	return 0;
 }
 
+/*** exercise 6.5 ***/
 int spawn(char *prog, char **argv)
 {
 	u_char elfbuf[512];
@@ -118,23 +164,52 @@ int spawn(char *prog, char **argv)
 	Elf32_Phdr* ph;
 	// Note 0: some variable may be not used,you can cancel them as you like
 	// Step 1: Open the file specified by `prog` (prog is the path of the program)
-	if((r=open(prog, O_RDONLY))<0){
+	if((fd = open(prog, O_RDONLY))<0){
 		user_panic("spawn ::open line 102 RDONLY wrong !\n");
-		return r;
+		return fd;
 	}
-	// Your code begins here
+
+	// Get ELF file header
+	if ((r = readn(fd, elfbuf, sizeof(Elf32_Ehdr))) < 0) return r;
+	elf = (Elf32_Ehdr *)elfbuf;
+
 	// Before Step 2 , You had better check the "target" spawned is a execute bin 
-	// Step 2: Allocate an env (Hint: using syscall_env_alloc())
+	if (!usr_is_elf_format(elf) || elf->e_type != 2) return -E_INVAL;
+
+	// Step 2: Allocate an (child) env (Hint: using syscall_env_alloc())
+	//  Similar to fork
+	if ((r = syscall_env_alloc()) < 0) return r;
+	if (r == 0) {	// when child_env awake
+		env = envs + ENVX(syscall_getenvid());
+		return 0;
+	}
+	child_envid = r;
+
 	// Step 3: Using init_stack(...) to initialize the stack of the allocated env
-	// Step 3: Map file's content to new env's text segment
-	//        Hint 1: what is the offset of the text segment in file? try to use objdump to find out.
-	//        Hint 2: using read_map(...)
-	//		  Hint 3: Important!!! sometimes ,its not safe to use read_map ,guess why 
-	//				  If you understand, you can achieve the "load APP" with any method
-	// Note1: Step 1 and 2 need sanity check. In other words, you should check whether
-	//       the file is opened successfully, and env is allocated successfully.
-	// Note2: You can achieve this func in any way ，remember to ensure the correctness
+	init_stack(child_envid, argv, &esp);
+
+	// Step 4: Map file's content to new env's text segment
+	//   Hint 1: what is the offset of the text segment in file? 
+	//           Try to use objdump to find out.
+	//   Hint 2: using read_map(...)
+	//   Hint 3: Important!!! sometimes, its not safe to use read_map, guess why 
+	//           If you understand, you can achieve the "load APP" with any method
+	// Note1: Step 1 & 2 need sanity check. Videlicet, you should check whether
+	//        the file is opened successfully, and env is allocated successfully.
+	// Note2: You can achieve func in any way. Remember to ensure it's correct.
 	//        Maybe you can review lab3 
+	//  Similar to load_elf
+	text_start = elf->e_phoff;
+	size = elf->e_phentsize;
+	for (i = 0; i < elf->e_phnum; ++i) {
+		if ((r = seek(fd, text_start)))        return r; // set an offset
+		if ((r = readn(fd, elfbuf, size)) < 0) return r; // read an entry
+		ph = (Elf32_Phdr *)elfbuf;
+		if (ph->p_type == PT_LOAD) { // loadable program segment
+			if ((r = usr_load_elf(fd, ph, child_envid))) return r;
+		}
+		text_start += size;
+	}
 	// Your code ends here
 
 	struct Trapframe *tf;
