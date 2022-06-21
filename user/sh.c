@@ -77,6 +77,7 @@ gettoken(char *s, char **p1)
 }
 
 #define MAXARGS 16
+/*** exercise 6.6 ***/
 void
 runcmd(char *s)
 {
@@ -100,18 +101,47 @@ again:
 			argv[argc++] = t;
 			break;
 		case '<':
-			if(gettoken(0, &t) != 'w'){
+			if(gettoken(0, &t) != 'w') {
 				writef("syntax error: < not followed by word\n");
 				exit();
 			}
 			// Your code here -- open t for reading,
 			// dup it onto fd 0, and then close the fd you got.
-			user_panic("< redirection not implemented");
+			if ((r = stat(t, &state))) {
+				writef("failed to get file state, file may not exist\n");
+				exit();
+			}
+			if (state.st_type != FTYPE_REG) {
+				writef("source should be file\n");
+				exit();
+			}
+			if ((fdnum = open(t, O_RDONLY)) < 0) {
+				writef("failed to open file\n");
+				exit();
+			}
+			dup(fdnum, 0);
+			close(fdnum);
+			//user_panic("< redirection not implemented");
 			break;
 		case '>':
+			if(gettoken(0, &t) != 'w') {
+				writef("syntax error: > not followed by word\n");
+				exit();
+			}
 			// Your code here -- open t for writing,
 			// dup it onto fd 1, and then close the fd you got.
-			user_panic("> redirection not implemented");
+			r = stat(t, &state); // file can be unfounded, then we create one
+			if (r >= 0 && state.st_type != FTYPE_REG) {
+				writef("target should be file\n");
+				exit();
+			}
+			if ((fdnum = open(t, O_WRONLY | O_CREAT)) < 0) {
+				writef("failed to open file\n");
+				exit();
+			}
+			dup(fdnum, 1);
+			close(fdnum);
+			//user_panic("> redirection not implemented");
 			break;
 		case '|':
 			// Your code here.
@@ -129,7 +159,20 @@ again:
 			//		set "rightpipe" to the child envid
 			//		goto runit, to execute this piece of the pipeline
 			//			and then wait for the right side to finish
-			user_panic("| not implemented");
+			pipe(p);
+			rightpipe = fork();
+			if (rightpipe == 0) { // child_env: right side of pipe
+				dup(p[0], 0);
+				close(p[0]);
+				close(p[1]);
+				goto again;
+			} else {
+				dup(p[0], 1);
+				close(p[0]);
+				close(p[1]);
+				goto runit;
+			}
+			// user_panic("| not implemented");
 			break;
 		}
 	}
