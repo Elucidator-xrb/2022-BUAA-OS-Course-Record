@@ -84,6 +84,7 @@ runcmd(char *s)
 	char *argv[MAXARGS], *t;
 	int argc, c, i, r, p[2], fd, rightpipe;
 	int fdnum;
+	struct Stat state;
 	rightpipe = 0;
 	gettoken(s, 0);
 again:
@@ -111,8 +112,8 @@ again:
 				writef("failed to get file state, file may not exist\n");
 				exit();
 			}
-			if (state.st_type != FTYPE_REG) {
-				writef("source should be file\n");
+			if (state.st_isdir) {
+				writef("source should be file, not directory\n");
 				exit();
 			}
 			if ((fdnum = open(t, O_RDONLY)) < 0) {
@@ -131,8 +132,8 @@ again:
 			// Your code here -- open t for writing,
 			// dup it onto fd 1, and then close the fd you got.
 			r = stat(t, &state); // file can be unfounded, then we create one
-			if (r >= 0 && state.st_type != FTYPE_REG) {
-				writef("target should be file\n");
+			if (r >= 0 && state.st_isdir) {
+				writef("target should be file, not directory\n");
 				exit();
 			}
 			if ((fdnum = open(t, O_WRONLY | O_CREAT)) < 0) {
