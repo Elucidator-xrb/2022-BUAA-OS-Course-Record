@@ -141,7 +141,7 @@ usr_load_elf(int fd, Elf32_Phdr *ph, int child_envid){
 	// for the guidebook promise to fill the rest of the Page with 0.
 	// So there was a redundant part of code in Lab3, get rid of it here!
 
-	while (i < sgsize) {
+	while (i < seg_size) {
 		if ((r = syscall_mem_alloc(child_envid, va + i, PTE_V | PTE_R)))
 			return r;
 		i += BY2PG;
