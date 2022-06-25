@@ -154,11 +154,17 @@
  * The "field" name is the link element as above. You can refer to LIST_INSERT_HEAD.
  * Note: this function has big differences with LIST_INSERT_HEAD !
  */
-#define LIST_INSERT_TAIL(head, elm, field) do {								\
-				(elm)->field.le_prev = &LIST_FIRST((head));							\
-				while (*(elm)->field.le_prev != NULL) 								\
-					(elm)->field.le_prev = &LIST_NEXT(*(elm)->field.le_prev, field);	\
-				*(elm)->field.le_prev = (elm);										\
+#define LIST_INSERT_TAIL(head, elm, field) do {						\
+				if (LIST_EMPTY(head)) 								\
+					LIST_INSERT_HEAD(head, elm, field);				\
+				else { \
+					LIST_NEXT(elm, field) = LIST_FIRST(head);				\
+					while (LIST_NEXT(LIST_NEXT(elm, field), field) != NULL) \
+						LIST_NEXT(elm, field) = LIST_NEXT(LIST_NEXT(elm, field), field);\
+					LIST_NEXT(LIST_NEXT(elm, field), field) = (elm);		\
+					(elm)->field.le_prev = &LIST_NEXT(LIST_NEXT(elm, field), field); \
+					LIST_NEXT(elm, field) = NULL;							\
+				} \
 		} while (0)
 /* finish your code here. */
 
