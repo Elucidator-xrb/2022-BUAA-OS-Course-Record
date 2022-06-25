@@ -276,11 +276,11 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
 {
     struct Env *env = (struct Env *)user_data;
     struct Page *p = NULL;
-    u_long i = 0;
+    u_long i;
     int r;
     u_long offset = va - ROUNDDOWN(va, BY2PG);
 
-	int size;
+	int size = 0;
 
     /* Step 1: load all content of bin into memory. */
 	// va unaligned with page
@@ -290,39 +290,31 @@ static int load_icode_mapper(u_long va, u_int32_t sgsize,
 			if ((r = page_alloc(&p))) return r;
 			page_insert(env->env_pgdir, p, va, PTE_R);
 		}
-//printf("[trace] before target 1\n");
-//printf("[trace] va:%x page2kva(p)+offset:%x\n", va, page2kva(p)+offset);
 		size = MIN(bin_size, BY2PG - offset); // start unaligned
 		bcopy((void *)bin, (void *)(page2kva(p) + offset), size); 
-						// va vs page2kva(p)+offset
-		i = size;
 	}
 
-    for (; i < bin_size; i += size) {
+    for (i = size; i < bin_size; i += BY2PG) {
 		if ((r = page_alloc(&p))) return r;
 		page_insert(env->env_pgdir, p, va + i, PTE_R);
-		
 		size = MIN(bin_size - i, BY2PG);
 		bcopy((void *)bin + i, (void *)page2kva(p), size);
     }
 
     /* Step 2: alloc pages to reach `sgsize` when `bin_size` < `sgsize`.
      * hint: variable `i` has the value of `bin_size` now! */
+    /*
 	offset = va + i - ROUNDDOWN(va + i, BY2PG);
 	if (offset) {
-//printf("[trace] before target 2\n");
-//printf("[trace] va+i:%x page2kva(p)+offset:%x\n", va+i, page2kva(p)+offset);
 		size = MIN(sgsize - i, BY2PG - offset);
 		bzero((void *)(page2kva(p) + offset), size);
 		i += size;
-	}
+	}  // unnecessary! changed from lab6
+    */
     while (i < sgsize) {
 		if ((r = page_alloc(&p))) return r;
 		page_insert(env->env_pgdir, p, va + i, PTE_R);
-
-		size = MIN(sgsize - i, BY2PG);
-		bzero((void *)page2kva(p), size);
-		i += size;
+		i += BY2PG;
     }
 
     return 0;
