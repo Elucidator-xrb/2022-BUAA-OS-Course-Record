@@ -168,9 +168,9 @@ again:
 				close(p[1]);
 				goto again;
 			} else {
-				dup(p[0], 1);
-				close(p[0]);
+				dup(p[1], 1);
 				close(p[1]);
+				close(p[0]);
 				goto runit;
 			}
 			// user_panic("| not implemented");
