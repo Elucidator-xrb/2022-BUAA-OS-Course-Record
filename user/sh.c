@@ -108,14 +108,14 @@ again:
 			}
 			// Your code here -- open t for reading,
 			// dup it onto fd 0, and then close the fd you got.
-			if ((r = stat(t, &state))) {
+			/*if ((r = stat(t, &state))) {
 				writef("failed to get file state, file may not exist\n");
 				exit();
 			}
 			if (state.st_isdir) {
 				writef("source should be file, not directory\n");
 				exit();
-			}
+			}*/
 			if ((fdnum = open(t, O_RDONLY)) < 0) {
 				writef("failed to open file\n");
 				exit();
@@ -131,11 +131,11 @@ again:
 			}
 			// Your code here -- open t for writing,
 			// dup it onto fd 1, and then close the fd you got.
-			r = stat(t, &state); // file can be unfounded, then we create one
+			/*r = stat(t, &state); // file can be unfounded, then we create one
 			if (r >= 0 && state.st_isdir) {
 				writef("target should be file, not directory\n");
 				exit();
-			}
+			}*/
 			if ((fdnum = open(t, O_WRONLY)) < 0) {
 				writef("failed to open file\n");
 				exit();
