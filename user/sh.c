@@ -136,7 +136,7 @@ again:
 				writef("target should be file, not directory\n");
 				exit();
 			}
-			if ((fdnum = open(t, O_WRONLY | O_CREAT)) < 0) {
+			if ((fdnum = open(t, O_WRONLY)) < 0) {
 				writef("failed to open file\n");
 				exit();
 			}
