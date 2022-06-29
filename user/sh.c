@@ -2,8 +2,10 @@
 #include <args.h>
 
 int debug_ = 0;
+char pwd[MAXPATHLEN];
 
-//
+#define USER_TITLE "excalibur-xrb@shell"
+
 // get the next token from string s
 // set *p1 to the beginning of the token and
 // *p2 just past the token.
@@ -214,7 +216,7 @@ runit:
 	}
 
 	if ((r = spawn(argv[0], argv)) < 0)
-		writef("shell: command \"%s\" not found. failed to spawn: %e\n", argv[0], r);
+		writef("\033[031mshell: command \"%s\" not found.\033[0m failed to spawn: %e\n", argv[0], r);
 
 	close_all(); // close all fd
 
@@ -248,21 +250,21 @@ readline(char *buf, u_int n)
 	int i, r;
 
 	r = 0;
-	for(i=0; i<n; i++){
-		if((r = read(0, buf+i, 1)) != 1){
-			if(r < 0)
-				writef("read error: %e", r);
+	for (i=0; i<n; i++) {
+		if ((r = read(0, buf+i, 1)) != 1) {
+			if(r < 0) writef("read error: %e", r);
 			exit();
 		}
-		if(buf[i] == '\b'){
-			if(i > 0)
-				i -= 2;
-			else
-				i = 0;
+		if (buf[i] == '\b') {
+			if(i > 0) i -= 2;
+			else i = 0;
 		}
-		if(buf[i] == '\r' || buf[i] == '\n'){
+		if (buf[i] == '\r' || buf[i] == '\n') {
 			buf[i] = 0;
 			return;
+		}
+		if (buf[i] == 38) {	// keyboard "up"
+			
 		}
 	}
 	writef("line too long\n");
@@ -286,11 +288,14 @@ umain(int argc, char **argv)
 	int r, interactive, echocmds;
 	interactive = '?';
 	echocmds = 0;
+	pwd[0] = '/';
+
 	writef("\n:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
 	writef("::                                                         ::\n");
 	writef("::              Super Shell  V0.0.0_1                      ::\n");
 	writef("::                                                         ::\n");
 	writef(":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
+	
 	ARGBEGIN{
 	case 'd':
 		debug_++;
@@ -305,33 +310,31 @@ umain(int argc, char **argv)
 		usage();
 	}ARGEND
 
-	if(argc > 1)
-		usage();
-	if(argc == 1){
+	if (argc > 1) usage();
+	if (argc == 1) {
 		close(0);
 		if ((r = open(argv[1], O_RDONLY)) < 0)
 			user_panic("open %s: %e", r);
 		user_assert(r==0);
 	}
-	if(interactive == '?')
-		interactive = iscons(0);
+	if (interactive == '?') interactive = iscons(0);
+
 	for(;;){
-		if (interactive)
-			fwritef(1, "\n$ ");
+		if (interactive) 
+			fwritef(1, "\n\033[32;1m%s\033[0m:\033[34;1m%s\033[0m$ ", USER_TITLE, pwd);
 		readline(buf, sizeof buf);
 		
-		if (buf[0] == '#')
-			continue;
-		if (echocmds)
-			fwritef(1, "# %s\n", buf);
-		if ((r = fork()) < 0)
-			user_panic("fork: %e", r);
+		if (buf[0] == '#') continue;
+
+		if (echocmds) fwritef(1, "# %s\n", buf);
+
+		if ((r = fork()) < 0) user_panic("fork: %e", r);
+
 		if (r == 0) {
 			runcmd(buf);
 			exit();
 			return;
-		} else
-			wait(r);
+		} else wait(r);
 	}
 }
 
