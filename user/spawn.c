@@ -162,9 +162,16 @@ int spawn(char *prog, char **argv)
 	u_int esp;
 	Elf32_Ehdr* elf;
 	Elf32_Phdr* ph;
+
+	char prog_name[MAXNAMELEN];
+	strcpy(prog_name, prog);
+	int len = strlen(prog);
+	if (len <= 2 || prog_name[len-1] != 'b' && prog_name[len-2] != '.')
+		strcat(prog_name, ".b");
+
 	// Note 0: some variable may be not used,you can cancel them as you like
 	// Step 1: Open the file specified by `prog` (prog is the path of the program)
-	if((fd = open(prog, O_RDONLY))<0){
+	if((fd = open(prog_name, O_RDONLY))<0){
 		user_panic("spawn ::open line 102 RDONLY wrong !\n");
 		return fd;
 	}
@@ -213,32 +220,28 @@ int spawn(char *prog, char **argv)
 	// Your code ends here
 
 	struct Trapframe *tf;
-	writef("\n::::::::::spawn size : %x  sp : %x::::::::\n",size,esp);
+	writef("::::::::::spawn size : %x  sp : %x::::::::\n",size,esp);
 	tf = &(envs[ENVX(child_envid)].env_tf);
 	tf->pc = UTEXT;
 	tf->regs[29]=esp;
-
 
 	// Share memory
 	u_int pdeno = 0;
 	u_int pteno = 0;
 	u_int pn = 0;
 	u_int va = 0;
-	for(pdeno = 0;pdeno<PDX(UTOP);pdeno++)
-	{
-		if(!((* vpd)[pdeno]&PTE_V))
+	for (pdeno = 0; pdeno < PDX(UTOP); pdeno++) {
+		if(!((*vpd)[pdeno] & PTE_V))
 			continue;
-		for(pteno = 0;pteno<=PTX(~0);pteno++)
-		{
-			pn = (pdeno<<10)+pteno;
-			if(((* vpt)[pn]&PTE_V)&&((* vpt)[pn]&PTE_LIBRARY))
-			{
-				va = pn*BY2PG;
-
-				if((r = syscall_mem_map(0,va,child_envid,va,(PTE_V|PTE_R|PTE_LIBRARY)))<0)
-				{
-
-					writef("va: %x   child_envid: %x   \n",va,child_envid);
+		for (pteno = 0; pteno <= PTX(~0); pteno++) {
+			pn = (pdeno << 10) + pteno;
+			if (((*vpt)[pn] & PTE_V) && ((*vpt)[pn] & PTE_LIBRARY)) {
+				va = pn * BY2PG;
+				if((r = syscall_mem_map(
+					0, va, child_envid, va, 
+					(PTE_V | PTE_R | PTE_LIBRARY)
+				))) {
+					writef("va: %x   child_envid: %x   \n", va, child_envid);
 					user_panic("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 					return r;
 				}
@@ -246,14 +249,11 @@ int spawn(char *prog, char **argv)
 		}
 	}
 
-
-	if((r = syscall_set_env_status(child_envid, ENV_RUNNABLE)) < 0)
-	{
+	if ((r = syscall_set_env_status(child_envid, ENV_RUNNABLE))) {
 		writef("set child runnable is wrong\n");
 		return r;
 	}
 	return child_envid;		
-
 }
 
 int
