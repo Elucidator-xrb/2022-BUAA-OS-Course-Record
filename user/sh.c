@@ -133,12 +133,12 @@ again:
 			}
 			// Your code here -- open t for writing,
 			// dup it onto fd 1, and then close the fd you got.
-			/*r = stat(t, &state); // file can be unfounded, then we create one
+			r = stat(t, &state); // file can be unfounded, then we create one
 			if (r >= 0 && state.st_isdir) {
 				writef("target should be file, not directory\n");
 				exit();
-			}*/
-			if ((fdnum = open(t, O_WRONLY)) < 0) {
+			}
+			if ((fdnum = open(t, O_WRONLY | O_CREAT)) < 0) {
 				writef("failed to open file\n");
 				exit();
 			}
@@ -223,13 +223,13 @@ runit:
 		
 		if (is_parallel == 0) wait(r);
 		else {
-			writef("\x1b[33m[%08x]\x1b[0m\t", r);
+			writef("\033[33m[%08x]\033[0m\t", r);
 			for (i = 0; i < argc; ++i) writef("%s ", argv[i]);
 			writef("\n");
 			envid = fork();
 			if (envid == 0) {
 				wait(r);
-				writef("\x1b[33m[%08x]\x1b[35m\tDone\x1b[0m\n", r);
+				writef("\033[33m[%08x]\033[35m\tDone\x1b[0m\n", r);
 				exit();
 			}
 		}

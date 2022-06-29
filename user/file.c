@@ -59,6 +59,8 @@ open(const char *path, int mode)
         if ((r = fsipc_map(fileid, i, va + i))) return r;
     }
 
+	if (mode & O_APPEND) fd->fd_offset = size;
+
 	// Step 5: Return the number of file descriptor.
     return fd2num(fd);
 }
