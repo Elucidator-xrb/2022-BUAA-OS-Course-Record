@@ -71,6 +71,7 @@ int syscall_read(u_int va, u_int dev, u_int len);
 // string.c
 int strlen(const char *s);
 char *strcpy(char *dst, const char *src);
+char *strcat(char *dst, const char *src);
 const char *strchr(const char *s, char c);
 void *memcpy(void *destaddr, void const *srcaddr, u_int len);
 int strcmp(const char *p, const char *q);
@@ -101,6 +102,7 @@ int fwritef(int fd, const char *fmt, ...);
 
 // fsipc.c
 int	fsipc_open(const char *, u_int, struct Fd *);
+int fsipc_create(const char *path, u_int f_type);
 int	fsipc_map(u_int, u_int, u_int);
 int	fsipc_set_size(u_int, u_int);
 int	fsipc_close(u_int);
@@ -114,7 +116,7 @@ int	close(int fd);
 int	read(int fd, void *buf, u_int nbytes);
 int	write(int fd, const void *buf, u_int nbytes);
 int	seek(int fd, u_int offset);
-void	close_all(void);
+void close_all(void);
 int	readn(int fd, void *buf, u_int nbytes);
 int	dup(int oldfd, int newfd);
 int fstat(int fdnum, struct Stat *stat);
@@ -122,6 +124,7 @@ int	stat(const char *path, struct Stat *);
 
 // file.c
 int	open(const char *path, int mode);
+int create(const char *path, u_int f_type);
 int	read_map(int fd, u_int offset, void **blk);
 int	remove(const char *path);
 int	ftruncate(int fd, u_int size);

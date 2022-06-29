@@ -94,8 +94,7 @@ open_lookup(u_int envid, u_int fileid, struct Open **po)
 void
 serve_open(u_int envid, struct Fsreq_open *rq)
 {
-	writef("serve_open %08x %x 0x%x\n", envid, (int)rq->req_path, rq->req_omode);
-
+	//writef("serve_open %08x %x 0x%x\n", envid, (int)rq->req_path, rq->req_omode);
 	u_char path[MAXPATHLEN];
 	struct File *f;
 	struct Filefd *ff;
@@ -137,15 +136,35 @@ serve_open(u_int envid, struct Fsreq_open *rq)
 }
 
 void
+serve_create(u_int envid, struct Fsreq_create *rq)
+{
+	u_char path[MAXPATHLEN];
+	struct File *f;
+	struct Filefd *ffd;
+	int fileid;
+	int r;
+	struct Open *o;
+
+	// Copy in the path, making sure it's null-terminated
+	user_bcopy(rq->req_path, path, MAXPATHLEN);
+	path[MAXPATHLEN - 1] = 0;
+
+	// Create the file.
+	if ((r = file_create((char *)path, &f)) < 0) {
+		ipc_send(envid, r, 0, 0);
+		return;
+	}
+	f->f_type = rq->req_filetype;
+
+	ipc_send(envid, 0, 0, 0);
+}
+
+void
 serve_map(u_int envid, struct Fsreq_map *rq)
 {
-
 	struct Open *pOpen;
-
 	u_int filebno;
-
 	void *blk;
-
 	int r;
 
 	if ((r = open_lookup(envid, rq->req_fileid, &pOpen)) < 0) {
