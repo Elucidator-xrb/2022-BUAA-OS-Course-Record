@@ -27,6 +27,17 @@ strcpy(char *dst, const char *src)
 	return ret;
 }
 
+char *
+strcat(char *dst, const char *src) {
+	char *ret;
+	
+	ret = dst;
+	while (*dst) ++dst;
+	while ((*dst++ = *src++) != 0)
+		;
+	return ret;
+}
+
 const char *
 strchr(const char *s, char c)
 {
