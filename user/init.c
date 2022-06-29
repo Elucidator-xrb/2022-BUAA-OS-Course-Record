@@ -58,12 +58,12 @@ umain(int argc, char **argv)
 	close(0);
 	if ((r = opencons()) < 0)
 		user_panic("opencons: %e", r);
-	if (r != 0)
+	if (r != 0)	// fd = 0 is left to console
 		user_panic("first opencons used fd %d", r);
 	if ((r = dup(0, 1)) < 0)
 		user_panic("dup: %d", r);
 
-write(1,"LALA",4);
+// write(1,"LALA",4);
 
 	for (;;) {
 		writef("init: starting sh\n");
@@ -73,6 +73,5 @@ write(1,"LALA",4);
 			continue;
 		}
 		wait(r);
-	
 	}
 }
