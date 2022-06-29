@@ -23,38 +23,39 @@ _gettoken(char *s, char **p1, char **p2)
 {
 	int t;
 
-	if (s == 0) {
-		//if (debug_ > 1) writef("GETTOKEN NULL\n");
-		return 0;
-	}
-
-	//if (debug_ > 1) writef("GETTOKEN: %s\n", s);
+	if (s == 0) return 0;
 
 	*p1 = 0;
 	*p2 = 0;
 
-	while(strchr(WHITESPACE, *s))
-		*s++ = 0;
-	if(*s == 0) {
-	//	if (debug_ > 1) writef("EOL\n");
+	while (strchr(WHITESPACE, *s)) *s++ = 0;
+
+	if (*s == 0) {
 		return 0;
 	}
-	if(strchr(SYMBOLS, *s)){
+	if (*s == '"') {
+		s++;
+		*p1 = s;
+		while (*s && (*s != '"')) s++;
+		*s = 0;
+		while (*s && !strchr(WHITESPACE SYMBOLS, *s)) s++;
+		*p2 = s;
+		return 'w';
+	}
+	if (strchr(SYMBOLS, *s)){
 		t = *s;
 		*p1 = s;
 		*s++ = 0;
 		*p2 = s;
-//		if (debug_ > 1) writef("TOK %c\n", t);
 		return t;
 	}
+	
 	*p1 = s;
-	while(*s && !strchr(WHITESPACE SYMBOLS, *s))
-		s++;
+	while (*s && !strchr(WHITESPACE SYMBOLS, *s)) s++;
 	*p2 = s;
 	if (debug_ > 1) {
 		t = **p2;
 		**p2 = 0;
-//		writef("WORD: %s\n", *p1);
 		**p2 = t;
 	}
 	return 'w';
@@ -82,9 +83,11 @@ void
 runcmd(char *s)
 {
 	char *argv[MAXARGS], *t;
-	int argc, c, i, r, p[2], fd, rightpipe;
-	int fdnum;
+	int argc, c, i, r, p[2], fdnum, rightpipe;
+	int envid;
 	struct Stat state;
+	int is_parallel = 0;
+
 	rightpipe = 0;
 	gettoken(s, 0);
 again:
@@ -122,7 +125,6 @@ again:
 			}
 			dup(fdnum, 0);
 			close(fdnum);
-			//user_panic("< redirection not implemented");
 			break;
 		case '>':
 			if(gettoken(0, &t) != 'w') {
@@ -142,7 +144,6 @@ again:
 			}
 			dup(fdnum, 1);
 			close(fdnum);
-			//user_panic("> redirection not implemented");
 			break;
 		case '|':
 			// Your code here.
@@ -175,6 +176,27 @@ again:
 			}
 			// user_panic("| not implemented");
 			break;
+		case '&':
+			is_parallel = 1;
+			break;
+		case ';':
+			envid = fork();
+			if (envid == 0) { // child_env
+				is_parallel = 0;
+				goto runit;
+			} else {	// parent_env
+				wait(envid);
+				argc = 0;
+				rightpipe = 0;
+				is_parallel = 0;
+				do {
+					close(0);
+					if ((fdnum = opencons()) < 0)
+						user_panic("error in opencons\n");
+				} while (fdnum); // continue if fd != 0
+				dup(0, 1);
+			}
+			break;
 		}
 	}
 
@@ -193,10 +215,24 @@ runit:
 
 	if ((r = spawn(argv[0], argv)) < 0)
 		writef("spawn %s: %e\n", argv[0], r);
-	close_all();
+
+	close_all(); // close all fd
+
 	if (r >= 0) {
 		if (debug_) writef("[%08x] WAIT %s %08x\n", env->env_id, argv[0], r);
-		wait(r);
+		
+		if (is_parallel == 0) wait(r);
+		else {
+			writef("\x1b[33m[%08x]\x1b[0m\t", r);
+			for (i = 0; i < argc; ++i) writef("%s ", argv[i]);
+			writef("\n");
+			envid = fork();
+			if (envid == 0) {
+				wait(r);
+				writef("\x1b[33m[%08x]\x1b[35m\tDone\x1b[0m\n", r);
+				exit();
+			}
+		}
 	}
 	if (rightpipe) {
 		if (debug_) writef("[%08x] WAIT right-pipe %08x\n", env->env_id, rightpipe);
