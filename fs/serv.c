@@ -286,6 +286,10 @@ serve(void)
 				serve_open(whom, (struct Fsreq_open *)REQVA);
 				break;
 
+			case FSREQ_CREATE:
+				serve_create(whom, (struct Fsreq_create *)REQVA);
+				break;
+
 			case FSREQ_MAP:
 				serve_map(whom, (struct Fsreq_map *)REQVA);
 				break;
