@@ -214,7 +214,7 @@ runit:
 	}
 
 	if ((r = spawn(argv[0], argv)) < 0)
-		writef("spawn %s: %e\n", argv[0], r);
+		writef("shell: command \"%s\" not found. failed to spawn: %e\n", argv[0], r);
 
 	close_all(); // close all fd
 

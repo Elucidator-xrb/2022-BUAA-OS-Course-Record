@@ -171,8 +171,8 @@ int spawn(char *prog, char **argv)
 
 	// Note 0: some variable may be not used,you can cancel them as you like
 	// Step 1: Open the file specified by `prog` (prog is the path of the program)
-	if((fd = open(prog_name, O_RDONLY))<0){
-		user_panic("spawn ::open line 102 RDONLY wrong !\n");
+	if((fd = open(prog_name, O_RDONLY)) < 0) {
+		// user_panic("spawn ::open line 102 RDONLY wrong !\n");
 		return fd;
 	}
 
@@ -220,7 +220,7 @@ int spawn(char *prog, char **argv)
 	// Your code ends here
 
 	struct Trapframe *tf;
-	writef("::::::::::spawn size : %x  sp : %x::::::::\n",size,esp);
+	writef("::::::::::spawn size : %x  sp : %x::::::::\n", size, esp);
 	tf = &(envs[ENVX(child_envid)].env_tf);
 	tf->pc = UTEXT;
 	tf->regs[29]=esp;
