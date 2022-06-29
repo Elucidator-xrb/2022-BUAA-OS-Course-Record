@@ -9,6 +9,6 @@ void umain(int argc, char **argv) {
     }
     
     if (create(argv[1], FTYPE_DIR) < 0) {
-        fwritef(1, "Failed to create directory!\n");
+        fwritef(1, "Failed to create directory \"%s\"!\n", argv[1]);
     }
 }
