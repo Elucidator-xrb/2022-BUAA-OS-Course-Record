@@ -2,9 +2,6 @@
 #include <args.h>
 
 int debug_ = 0;
-char pwd[MAXPATHLEN];
-
-#define USER_TITLE "excalibur-xrb@shell"
 
 // get the next token from string s
 // set *p1 to the beginning of the token and
@@ -244,27 +241,117 @@ runit:
 	exit();
 }
 
+char buf[1024];
+char pwd[MAXPATHLEN];
+int history_index;
+int history_select;
+
+#define USER_TITLE "excalibur-xrb@shell"
+#define MAX_HISTORY_NUM 1024
+
+void save_cmd(char *buf) {
+	if (buf[0] == 0) return;
+
+	int fd = open(".history", O_WRONLY | O_CREAT | O_APPEND);
+	if (fd < 0) {
+		fwritef(1, "Failed to open \".history\"\n");
+		return;
+	}
+	fwritef(fd, "%4d  %s\n", history_index, buf);
+	history_index = (history_index + 1) % MAX_HISTORY_NUM;
+	close(fd);
+}
+
+int get_cmd(char *buf, int selnum) {
+	if (selnum >= history_index) return;
+
+	struct Stat state;
+	int fd;
+	char history_buf[MAX_HISTORY_NUM * 1024];
+	int i, j, cnt, start;
+
+	if ((fd = open(".history", O_RDONLY)) < 0) {
+		fwritef(1, "Failed to open \".history\"\n");
+		return;
+	}
+	if ((stat(".history", &state)) < 0) {
+		fwritef(1, "Failed to get state of \".history\"\n");
+		return;
+	}
+	read(fd, history_buf, state.st_size); // let us assume it won't overflow
+	history_buf[state.st_size] = 0;
+	close(fd);
+
+	for (i = 0, cnt = 0; history_buf[i]; ++i) {
+		if (history_buf[i] == '\n') {
+			cnt++;
+			continue;
+		}
+			
+		if (cnt == selnum) {
+			start = i + 6;
+			for (j = 0; history_buf[start+j] != '\n'; ++j)
+				buf[j] = history_buf[start+j];
+			buf[j] = 0;
+			return j;
+		}
+	}
+}
+
 void
 readline(char *buf, u_int n)
 {
 	int i, r;
 
 	r = 0;
-	for (i=0; i<n; i++) {
-		if ((r = read(0, buf+i, 1)) != 1) {
+	for (i = 0; i < n; i++) {
+		if ((r = read(0, buf + i, 1)) != 1) {
 			if(r < 0) writef("read error: %e", r);
 			exit();
 		}
-		if (buf[i] == '\b') {
-			if(i > 0) i -= 2;
-			else i = 0;
+		if (buf[i] == 127) { // why not '\b'?
+			if (i > 0) {
+				fwritef(1, "\033[1D"); // operate cursor
+				fwritef(1, "\033[K");
+				i -= 2;
+			} else i = -1;
+		}
+		if (buf[i] == '\t') {
+			buf[i--] = 0;
+			writef("[%s]", buf);
 		}
 		if (buf[i] == '\r' || buf[i] == '\n') {
 			buf[i] = 0;
 			return;
 		}
-		if (buf[i] == 38) {	// keyboard "up"
-			
+
+		if (buf[i] == 27) {	// keyboard "up arrow"
+			while (strlen(buf) != 0) {
+				fwritef(1, "\033[1D");
+				buf[strlen(buf) - 1] = 0;
+			}
+			fwritef(1, "\033[1D");
+			fwritef(1, "\033[K");
+
+			history_select--;
+			if (history_select < 0) 
+				history_select = 0;
+			i = get_cmd(buf, history_select) - 1;
+			fwritef(1, " %s", buf);
+		}
+		if (buf[i] == '`') { // keyboard "down arrow"
+			while (strlen(buf) != 0) {
+				fwritef(1, "\033[1D");
+				buf[strlen(buf) - 1] = 0;
+			}
+			fwritef(1, "\033[1D");
+			fwritef(1, "\033[K");
+
+			history_select++;
+			if (history_select > history_index)
+				history_select = history_index;
+			i = get_cmd(buf, history_select) - 1;
+			fwritef(1, " %s", buf);
 		}
 	}
 	writef("line too long\n");
@@ -272,8 +359,6 @@ readline(char *buf, u_int n)
 		;
 	buf[0] = 0;
 }	
-
-char buf[1024];
 
 void
 usage(void)
@@ -289,6 +374,7 @@ umain(int argc, char **argv)
 	interactive = '?';
 	echocmds = 0;
 	pwd[0] = '/';
+	history_index = 0;
 
 	writef("\n:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
 	writef("::                                                         ::\n");
@@ -322,9 +408,16 @@ umain(int argc, char **argv)
 	for(;;){
 		if (interactive) 
 			fwritef(1, "\n\033[32;1m%s\033[0m:\033[34;1m%s\033[0m$ ", USER_TITLE, pwd);
-		readline(buf, sizeof buf);
 		
-		if (buf[0] == '#') continue;
+		history_select = history_index;
+
+		//writef("\n[%s]", buf);
+		readline(buf, sizeof buf);
+		//writef("\n[%s]", buf);
+
+		if (buf[0] == '#' | buf[0] == 0) continue;
+
+		save_cmd(buf);
 
 		if (echocmds) fwritef(1, "# %s\n", buf);
 
