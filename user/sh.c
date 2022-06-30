@@ -207,8 +207,8 @@ runit:
 		return;
 	}
 	argv[argc] = 0;
-	if (1) {
-		if (debug) writef("[%08x] SPAWN:", env->env_id);
+	if (debug) {
+		writef("[%08x] SPAWN:", env->env_id);
 		for (i=0; argv[i]; i++)
 			writef(" %s", argv[i]);
 		writef("\n");
@@ -224,13 +224,13 @@ runit:
 		
 		if (is_parallel == 0) wait(r);
 		else {
-			writef("\033[33m[%08x]\033[0m\t", r);
+			writef("[%08x]\t", r);
 			for (i = 0; i < argc; ++i) writef("%s ", argv[i]);
 			writef("\n");
 			envid = fork();
 			if (envid == 0) {
 				wait(r);
-				writef("\033[33m[%08x]\033[35m\tDone\x1b[0m\n", r);
+				writef("[%08x] Done\n", r);
 				exit();
 			}
 		}
