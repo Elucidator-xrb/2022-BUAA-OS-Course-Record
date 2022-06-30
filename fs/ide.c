@@ -6,6 +6,8 @@
 #include "lib.h"
 #include <mmu.h>
 
+#define debug 0
+
 // Overview:
 // 	read data from IDE disk. First issue a read request through
 // 	disk register and then copy data from disk buffer
@@ -91,7 +93,7 @@ ide_write(u_int diskno, u_int secno, void *src, u_int nsecs)
     int rw_tmp;
 
 	// DO NOT DELETE WRITEF !!!
-	writef("diskno: %d\n", diskno);
+	if(debug) writef("diskno: %d\n", diskno);
 
     while (offset_begin + offset < offset_end) {
         offset_cur = offset_begin + offset;

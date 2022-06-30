@@ -3,6 +3,8 @@
 
 int debug_ = 0;
 
+#define debug 0
+
 // get the next token from string s
 // set *p1 to the beginning of the token and
 // *p2 just past the token.
@@ -206,7 +208,7 @@ runit:
 	}
 	argv[argc] = 0;
 	if (1) {
-		writef("[%08x] SPAWN:", env->env_id);
+		if (debug) writef("[%08x] SPAWN:", env->env_id);
 		for (i=0; argv[i]; i++)
 			writef(" %s", argv[i]);
 		writef("\n");
@@ -242,7 +244,7 @@ runit:
 }
 
 char buf[1024];
-char pwd[MAXPATHLEN];
+//char pwd[1024];
 int history_index;
 int history_select;
 
@@ -263,7 +265,7 @@ void save_cmd(char *buf) {
 }
 
 int get_cmd(char *buf, int selnum) {
-	if (selnum >= history_index) return;
+	if (selnum >= history_index) return 0;
 
 	struct Stat state;
 	int fd;
@@ -272,11 +274,11 @@ int get_cmd(char *buf, int selnum) {
 
 	if ((fd = open(".history", O_RDONLY)) < 0) {
 		fwritef(1, "Failed to open \".history\"\n");
-		return;
+		return 0;
 	}
 	if ((stat(".history", &state)) < 0) {
 		fwritef(1, "Failed to get state of \".history\"\n");
-		return;
+		return 0;
 	}
 	read(fd, history_buf, state.st_size); // let us assume it won't overflow
 	history_buf[state.st_size] = 0;
@@ -420,6 +422,12 @@ umain(int argc, char **argv)
 		save_cmd(buf);
 
 		if (echocmds) fwritef(1, "# %s\n", buf);
+
+		if (buf[0] == 'c' && buf[1] == 'd') {
+			strcat(pwd, buf + 3);
+			strcat(pwd, "/");
+			continue;
+		}
 
 		if ((r = fork()) < 0) user_panic("fork: %e", r);
 
