@@ -20,7 +20,8 @@ USERLIB :=	$(user_dir)/printf.o \
 		$(user_dir)/spawn.o \
 		$(user_dir)/pipe.o \
 		$(user_dir)/console.o \
-		$(user_dir)/fprintf.o
+		$(user_dir)/fprintf.o \
+		$(user_dir)/exec.o
 
 FSLIB :=	fs.o \
 		ide.o \
@@ -36,7 +37,8 @@ USERAPPS :=  $(user_dir)/num.b  \
 			 $(user_dir)/mkdir.b \
 			 $(user_dir)/touch.b \
 			 $(user_dir)/tree.b \
-			 $(user_dir)/history.b
+			 $(user_dir)/history.b \
+			 $(user_dir)/longtest.b
 
 
 FSIMGFILES := motd newmotd $(user_dir)/testarg.b $(user_dir)/init.b $(USERAPPS)

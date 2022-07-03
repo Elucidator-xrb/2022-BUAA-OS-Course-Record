@@ -16,12 +16,13 @@ USERLIB := printf.o \
 		wait.o \
 		spawn.o \
 		console.o \
-		fprintf.o
+		fprintf.o \
+		exec.o
 
 CFLAGS += -nostdlib -static
 
 all: echo.x echo.b num.x num.b testptelibrary.b testptelibrary.x testarg.b testpipe.x testpiperace.x icode.x init.b sh.b cat.b ls.b\
-	mkdir.x mkdir.b touch.x touch.b tree.x tree.b history.x history.b\
+	mkdir.x mkdir.b touch.x touch.b tree.x tree.b history.x history.b longtest.x longtest.b\
 	devtst.x devtst.b tltest.x tltest.b fktest.x fktest.b pingpong.x pingpong.b idle.x fstest.x fstest.b testbss.x testbss.b testfdsharing.x testfdsharing.b\
 	 $(USERLIB) entry.o syscall_wrap.o
 
