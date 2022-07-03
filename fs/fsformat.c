@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
 
 /* Prevent inc/types.h, included from inc/fs.h,
  * From attempting to redefine types defined in the host's inttypes.h. */
@@ -241,10 +242,7 @@ void write_file(struct File *dirf, const char *path) {
  
     // Get file name with no path prefix.
     const char *fname = strrchr(path, '/');
-    if(fname)
-        fname++;
-    else
-        fname = path;
+    fname = (fname == NULL) ? path : fname + 1;
     strcpy(target->f_name, fname);
  
     target->f_size = lseek(fd, 0, SEEK_END);
@@ -266,7 +264,43 @@ void write_file(struct File *dirf, const char *path) {
 // Post-Condition:
 //      We ASSUME that this funcion will never fail
 void write_directory(struct File *dirf, char *name) {
-    // Your code here
+    DIR *dir;
+    struct dirent *info;
+    struct File *ndir, *pdir;
+    int dirlen;
+    char sub[512];
+
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+        return;
+
+    if ((dir = opendir(name)) == NULL) return;
+    
+    dirlen = strlen(name);
+    if (name[dirlen - 1] == '/')
+        name[dirlen - 1] = 0;
+    
+    pdir = create_file(dirf);
+    
+    char *p, *q;
+    p = q = name;
+    while (*p) {
+        if (*p == '/') q = ++p;
+        else p++;
+    }
+    strcpy(pdir->f_name, q);
+    pdir->f_type = FTYPE_DIR;
+    while ((info = readdir(dir)) != NULL) {
+        if (info->d_type == DT_DIR) {
+            if (strcmp(info->d_name, ".") != 0 && strcmp(info->d_name, "..") != 0) {
+                sprintf(sub, "%s/%s", name, info->d_name);
+                write_directory(pdir, sub);
+            }
+        } else {
+            sprintf(sub, "%s/%s", name, info->d_name);
+            write_file(pdir, sub);
+        }
+    }
+    closedir(dir); 
 }
 
 int main(int argc, char **argv) {
@@ -281,12 +315,11 @@ Usage: fsformat gxemul/fs.img files...\n\
         exit(0);
     }
 
-    if(strcmp(argv[2], "-r") == 0) {
+    if (strcmp(argv[2], "-r") == 0) {
         for (i = 3; i < argc; ++i) {
             write_directory(&super.s_root, argv[i]);
         }
-    }
-    else {
+    } else {
         for(i = 2; i < argc; ++i) {
             write_file(&super.s_root, argv[i]);
         }
