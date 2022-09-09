@@ -207,7 +207,7 @@ runit:
 		return;
 	}
 	argv[argc] = 0;
-	if (debug) {
+	if (debug_) {
 		writef("[%08x] SPAWN:", env->env_id);
 		for (i=0; argv[i]; i++)
 			writef(" %s", argv[i]);
@@ -215,7 +215,14 @@ runit:
 	}
 
 	if ((r = spawn(argv[0], argv)) < 0)
+	//if ((r = exec(argv[0], argv)) < 0)
 		writef("\033[031mshell: command \"%s\" not found.\033[0m failed to spawn: %e\n", argv[0], r);
+/*
+	r = fork();
+	if (r == 0) {
+		exec(argv[0], argv);
+	}
+*/
 
 	close_all(); // close all fd
 
@@ -224,15 +231,15 @@ runit:
 		
 		if (is_parallel == 0) wait(r);
 		else {
-			writef("[%08x]\t", r);
-			for (i = 0; i < argc; ++i) writef("%s ", argv[i]);
-			writef("\n");
 			envid = fork();
 			if (envid == 0) {
 				wait(r);
-				writef("[%08x] Done\n", r);
+				writef("[%08x] is done\n", r);
 				exit();
 			}
+			writef("[%08x] is working...\t", r);
+			for (i = 0; i < argc; ++i) writef("%s ", argv[i]);
+			writef("\n");
 		}
 	}
 	if (rightpipe) {
@@ -244,7 +251,7 @@ runit:
 }
 
 char buf[1024];
-//char pwd[1024];
+char pwd[1024];
 int history_index;
 int history_select;
 
@@ -346,7 +353,7 @@ readline(char *buf, u_int n)
 				fwritef(1, "\033[1D");
 				buf[strlen(buf) - 1] = 0;
 			}
-			fwritef(1, "\033[1D");
+			//fwritef(1, "\033[1D");
 			fwritef(1, "\033[K");
 
 			history_select++;
@@ -380,7 +387,7 @@ umain(int argc, char **argv)
 
 	writef("\n:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
 	writef("::                                                         ::\n");
-	writef("::              Super Shell  V0.0.0_1                      ::\n");
+	writef("::              Mutilated Shell  V0.0.0_0                  ::\n");
 	writef("::                                                         ::\n");
 	writef(":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
 	

@@ -128,6 +128,7 @@ typedef struct {
 #define PF_R		(1 << 2)	/* Segment is readable */
 #define PF_MASKPROC	0xf0000000	/* Processor-specific */
 
+int is_elf_format(u_char *binary);
 int load_elf(u_char *binary, int size,
 			 u_long *entry_point, void *user_data,
 			 int (*map)(u_long, u_int32_t, u_char *, u_int32_t, void *));

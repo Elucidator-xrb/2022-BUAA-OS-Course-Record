@@ -14,6 +14,7 @@ extern void exit();
 
 extern struct Env *env;
 
+extern char pwd[MAXPATHLEN];
 
 #define USED(x) (void)(x)
 //////////////////////////////////////////////////////printf
@@ -33,13 +34,16 @@ __attribute__((noreturn));
 #define user_panic(...) _user_panic(__FILE__, __LINE__, __VA_ARGS__)
 
 
-/////////////////////////////////////////////////////fork spawn
+/////////////////////////////////////////////////////fork spawn exec
 int spawn(char *prog, char **argv);
 int spawnl(char *prot, char *args, ...);
 int fork(void);
+int exec(char *prog, char **argv);
 
 void user_bcopy(const void *src, void *dst, size_t len);
 void user_bzero(void *v, u_int n);
+
+//int usr_load_elf(int fd, Elf32_Phdr *ph, int child_envid);
 //////////////////////////////////////////////////syscall_lib
 extern int msyscall(int, int, int, int, int, int);
 
@@ -47,11 +51,9 @@ void syscall_putchar(char ch);
 u_int syscall_getenvid(void);
 void syscall_yield(void);
 int syscall_env_destroy(u_int envid);
-int syscall_set_pgfault_handler(u_int envid, void (*func)(void),
-								u_int xstacktop);
+int syscall_set_pgfault_handler(u_int envid, void (*func)(void), u_int xstacktop);
 int syscall_mem_alloc(u_int envid, u_int va, u_int perm);
-int syscall_mem_map(u_int srcid, u_int srcva, u_int dstid, u_int dstva,
-					u_int perm);
+int syscall_mem_map(u_int srcid, u_int srcva, u_int dstid, u_int dstva, u_int perm);
 int syscall_mem_unmap(u_int envid, u_int va);
 
 inline static int syscall_env_alloc(void)
@@ -67,6 +69,7 @@ void syscall_ipc_recv(u_int dstva);
 int syscall_cgetc();
 int syscall_write(u_int va, u_int dev, u_int len);
 int syscall_read(u_int va, u_int dev, u_int len);
+int syscall_exec(u_int envid, char **argv, void *elf, void *binary, void *b_state);
 
 // string.c
 int strlen(const char *s);

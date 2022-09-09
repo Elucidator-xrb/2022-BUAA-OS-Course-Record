@@ -4,6 +4,8 @@
 #include <printf.h>
 #include <pmap.h>
 #include <sched.h>
+#include <kerelf.h>
+#include "../user/lib.h"
 
 extern char *KERNEL_SP;
 extern struct Env *curenv;
@@ -457,5 +459,313 @@ int sys_read_dev(int sysno, u_int va, u_int dev, u_int len)
     if (!(check_csl(dev, len) || check_ide(dev, len) || check_rtc(dev, len)))
         return -E_INVAL;
     bcopy(0xa0000000 + dev, va, len);
+    return 0;
+}
+
+
+int strlen(const char *s) {
+	int n;
+	for (n = 0; *s; s++) 
+		n++;
+	return n;
+}
+
+
+#define TMPPAGE		(BY2PG)
+#define TMPPAGETOP	(TMPPAGE+BY2PG)
+/*
+int kernel_init_stack(struct Env *env, char **argv, u_int *init_esp) {
+    int argc, i, r, tot;
+	char *strings;
+	u_int *args;
+
+    struct Page *ppage;
+
+	// Count the number of arguments (argc)
+	// and the total amount of space needed for strings (tot)
+	tot = 0;
+	for (argc=0; argv[argc]; argc++)
+		tot += strlen(argv[argc])+1;
+
+	// Make sure everything will fit in the initial stack page
+	if (ROUND(tot, 4) + 4 * (argc + 3) > BY2PG) return -E_NO_MEM;
+
+	// Determine where to place the strings and the args array
+	strings = (char*)TMPPAGETOP - tot;
+	args = (u_int*)(TMPPAGETOP - ROUND(tot, 4) - 4*(argc+1));
+
+    if ((r = page_alloc(&ppage)))   return r;   // should we ? not sure
+	if ((r = page_insert(env->env_pgdir, ppage, TMPPAGE, PTE_V|PTE_R))) return r;
+
+	//  - copy the argument strings into the stack page at 'strings'
+	char *ctemp,*argv_temp;
+	u_int j;
+	ctemp = strings;
+	for (i = 0;i < argc; i++) {
+		argv_temp = argv[i];
+		for(j=0;j < strlen(argv[i]);j++) {
+			*ctemp = *argv_temp;
+			ctemp++;
+			argv_temp++;
+		}
+		*ctemp = 0;
+		ctemp++;
+	}
+	//	- initialize args[0..argc-1] to be pointers to these strings
+	//	  that will be valid addresses for the child environment
+	//	  (for whom this page will be at USTACKTOP-BY2PG!).
+	ctemp = (char *)(USTACKTOP - TMPPAGETOP + (u_int)strings);
+	for (i = 0; i < argc; i++) {
+		args[i] = (u_int)ctemp;
+		ctemp += strlen(argv[i]) + 1;
+	}
+	//	- set args[argc] to 0 to null-terminate the args array.
+	ctemp--;
+	args[argc] = ctemp;
+	//	- push two more words onto the child's stack below 'args',
+	//	  containing the argc and argv parameters to be passed
+	//	  to the child's umain() function.
+	u_int *pargv_ptr;
+	pargv_ptr = args - 1;
+	*pargv_ptr = USTACKTOP - TMPPAGETOP + (u_int)args;
+	pargv_ptr--;
+	*pargv_ptr = argc;
+	//
+	//	- set *init_esp to the initial stack pointer for the child
+	//
+	*init_esp = USTACKTOP - TMPPAGETOP + (u_int)pargv_ptr;
+//	*init_esp = USTACKTOP;	// Change this!
+
+    Pte *ppte;
+    u_int srcva = TMPPAGE;
+    u_int dstva = USTACKTOP - BY2PG;
+    ppage = page_lookup(env->env_pgdir, srcva, &ppte);
+    ppage = pa2page(PTE_ADDR(*ppte));
+    if ((r = page_insert(env->env_pgdir, ppage, dstva, PTE_V | PTE_R))) {
+        page_remove(env->env_pgdir, srcva);
+        return r;
+    }
+	page_remove(env->env_pgdir, srcva);
+	return 0;
+}
+*/
+
+static int
+kernel_init_stack(u_int child, char **argv, u_int *init_esp)
+{
+	int argc, i, r, tot;
+	char *strings;
+	u_int *args;
+
+	// Count the number of arguments (argc)
+	// and the total amount of space needed for strings (tot)
+	tot = 0;
+	for (argc=0; argv[argc]; argc++)
+		tot += strlen(argv[argc])+1;
+
+	// Make sure everything will fit in the initial stack page
+	if (ROUND(tot, 4)+4*(argc+3) > BY2PG)
+		return -E_NO_MEM;
+
+	// Determine where to place the strings and the args array
+	strings = (char*)TMPPAGETOP - tot;
+	args = (u_int*)(TMPPAGETOP - ROUND(tot, 4) - 4*(argc+1));
+
+	if ((r = sys_mem_alloc(0, 0, TMPPAGE, PTE_V|PTE_R)) < 0)
+		return r;
+	// Replace this with your code to:
+	//
+	//	- copy the argument strings into the stack page at 'strings'
+	char *ctemp,*argv_temp;
+	u_int j;
+	ctemp = strings;
+	for(i = 0;i < argc; i++)
+	{
+		argv_temp = argv[i];
+		for(j=0;j < strlen(argv[i]);j++)
+		{
+			*ctemp = *argv_temp;
+			ctemp++;
+			argv_temp++;
+		}
+		*ctemp = 0;
+		ctemp++;
+	}
+	//	- initialize args[0..argc-1] to be pointers to these strings
+	//	  that will be valid addresses for the child environment
+	//	  (for whom this page will be at USTACKTOP-BY2PG!).
+	ctemp = (char *)(USTACKTOP - TMPPAGETOP + (u_int)strings);
+	for(i = 0;i < argc;i++)
+	{
+		args[i] = (u_int)ctemp;
+		ctemp += strlen(argv[i])+1;
+	}
+	//	- set args[argc] to 0 to null-terminate the args array.
+	ctemp--;
+	args[argc] = ctemp;
+	//	- push two more words onto the child's stack below 'args',
+	//	  containing the argc and argv parameters to be passed
+	//	  to the child's umain() function.
+	u_int *pargv_ptr;
+	pargv_ptr = args - 1;
+	*pargv_ptr = USTACKTOP - TMPPAGETOP + (u_int)args;
+	pargv_ptr--;
+	*pargv_ptr = argc;
+	//
+	//	- set *init_esp to the initial stack pointer for the child
+	//
+	*init_esp = USTACKTOP - TMPPAGETOP + (u_int)pargv_ptr;
+//	*init_esp = USTACKTOP;	// Change this!
+
+	if ((r = sys_mem_map(0, 0, TMPPAGE, child, USTACKTOP-BY2PG, PTE_V|PTE_R)) < 0)
+		goto error;
+	if ((r = sys_mem_unmap(0, 0, TMPPAGE)) < 0)
+		goto error;
+
+	return 0;
+
+error:
+	sys_mem_unmap(0, 0, TMPPAGE);
+	return r;
+}
+
+int kernel_load_elf(u_char *binary, Elf32_Phdr *ph, struct Env *env) {
+    u_long va = ph->p_vaddr;
+    u_int32_t seg_size = ph->p_memsz;
+	u_int32_t bin_size = ph->p_filesz;
+    u_char *bin = binary + ph->p_offset;
+printf("va: %x\n", va);
+ 	u_long i;
+	u_long tmp = USTACKTOP;
+    int r;
+    u_long offset = va - ROUNDDOWN(va, BY2PG);
+    int size = 0;
+
+    struct Page *p = NULL;
+    u_int perm = PTE_V | PTE_R;
+
+    if (offset) {
+        if ((r = page_alloc(&p))) return r;
+        page_insert(env->env_pgdir, p, va, PTE_R);
+        size = MIN(bin_size, BY2PG - offset);
+        bcopy(bin, page2kva(p) + offset, size);
+    }
+
+	for (i = size; i < bin_size; i += BY2PG) {
+        if ((r = page_alloc(&p))) return r;
+        page_insert(env->env_pgdir, p, va + i, PTE_R);
+        size = MIN(bin_size - i, BY2PG);
+        bcopy(bin + i, page2kva(p), size);
+    }
+	
+	while (i < seg_size) {
+		if ((r = page_alloc(&p))) return r;
+        page_insert(env->env_pgdir, p, va + i, PTE_R);
+        i += BY2PG;
+	}
+
+	return 0;  
+}
+
+int kernel_load_icode(struct Env *e, u_char *binary, u_int size) {
+    int r;
+    r = env_load_icode(binary, size, e);
+}
+
+/*
+int sys_exec(int sysno, char** argv, void* elfbuf, void* _binary, void* _binaryStat) {
+    Elf32_Ehdr* elf = (Elf32_Ehdr*) elfbuf;
+    Elf32_Phdr* ph;
+    int r = 0;
+    char* binary = (char*) _binary;
+
+    u_int esp = 0; 
+    u_int envid = curenv->env_id;
+    printf("envid [%x]\n", envid);
+    r = kernel_init_stack(envid, argv, &esp);
+    if (r < 0){
+        return r;
+    }
+    struct Stat* binaryStat = (struct Stat*)_binaryStat;
+    
+    kernel_load_icode(curenv, binary, binaryStat->st_size);
+    //size = binaryStat->st_size;
+    //printf("seting tf..\n");
+    bcopy((void*)KERNEL_SP - sizeof(struct Trapframe), &(curenv->env_tf), sizeof(struct Trapframe));
+
+    struct Trapframe* tf;
+    tf = &(curenv->env_tf);
+    (tf->regs)[29] = esp;
+    tf->cp0_epc = UTEXT;
+    tf->pc = UTEXT;
+printf("Before run!\n");
+    env_run(curenv);
+    return 0;
+}
+*/
+
+
+int sys_exec(int sysno, u_int envid, char **argv, void *elfbuf, void *binary, void *b_state)
+{
+    int r, i;
+
+    Elf32_Ehdr *elf;
+    Elf32_Phdr *ph;
+    Elf32_Half ph_entry_cnt, ph_entry_size;
+    u_char *ph_entry_start;
+
+    struct Stat *state;
+    struct Env *e;
+    u_int esp;
+
+    Pte *pt;
+    u_int pdeno, pteno, pa;
+    u_int pn, va;
+
+    elf = (Elf32_Ehdr *) elfbuf;
+
+    ph_entry_cnt = elf->e_phnum;
+    ph_entry_size = elf->e_phentsize;
+    ph_entry_start = binary + elf->e_phoff;
+    printf("cnt:%d, size:%d, start:%x\n", ph_entry_cnt, ph_entry_size, ph_entry_start);
+
+    if ((r = envid2env(envid, &e, 0))) panic("Failed to get env");
+
+    kernel_init_stack(envid, argv, &esp);
+    printf("After init stack. [%08x]\n", envid);
+
+
+    // flush all mapped pages in the user portion of e
+    for (pdeno = 0; pdeno < PDX(UTOP); ++pdeno) {
+        if (!(e->env_pgdir[pdeno] & PTE_V)) continue;
+        pa = PTE_ADDR(e->env_pgdir[pdeno]);
+        pt = (Pte *)KADDR(pa);
+        for (pteno = 0; pteno <= PTX(~0); ++pteno) {
+            if (pt[pteno] & PTE_V)
+                page_remove(e->env_pgdir, (pdeno << PDSHIFT) | pteno << PGSHIFT);
+        }
+        e->env_pgdir[pdeno] = 0;
+        page_decref(pa2page(pa));
+        tlb_invalidate(e->env_pgdir, UVPT + (pdeno << PGSHIFT));
+    }
+   
+    for (i = 0; i < elf->e_phnum; ++i) { 
+        ph = (Elf32_Phdr *)ph_entry_start;
+        printf("[p-type]:%d\n", ph->p_type);
+        if (ph->p_type == PT_LOAD) {
+            if ((r = kernel_load_elf(binary, ph, e))) 
+                panic("Failed when loading elf");
+            printf("[load one section]\n");
+        }
+        ph_entry_start += ph_entry_size;
+    }
+printf("After load elf\n");
+
+    e->env_tf.pc = UTEXT;
+    //e->env_tf.cp0_epc = UTEXT;
+    e->env_tf.regs[29] = esp;
+    e->env_tf.cp0_status = 0x1000100c;
+printf("Before run\n");
+    //sched_yield();
     return 0;
 }

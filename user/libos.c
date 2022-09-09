@@ -12,6 +12,8 @@ exit(void)
 
 struct Env *env;
 
+char pwd[MAXPATHLEN];
+
 void
 libmain(int argc, char **argv)
 {

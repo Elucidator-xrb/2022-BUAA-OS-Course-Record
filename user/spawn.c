@@ -208,6 +208,22 @@ int spawn(char *prog, char **argv)
 	//  Similar to load_elf
 	text_start = elf->e_phoff;
 	size = elf->e_phentsize;
+
+	// Elf32_Half ph_entry_cnt = elf->e_phnum;
+    // Elf32_Half ph_entry_size = elf->e_phentsize;
+    // u_char *ph_entry_start;
+	// u_char *binary;
+	// if ((r = read_map(fd, 0, &binary))) return r;
+	// fwritef(1, "[binary]:%x\n", binary);
+    // ph_entry_start = binary + elf->e_phoff;
+    // fwritef(1, "cnt:%d, size:%d, start:%x\n", elf->e_phnum, elf->e_phentsize, binary + elf->e_phoff);
+    // for (i = 0; i < elf->e_phnum; ++i) { 
+    //     ph = (Elf32_Phdr *)ph_entry_start;
+    //     fwritef(1, "[p-type]:%d\n", ph->p_type);
+    //     if (ph->p_type == 1) fwritef(1, "[load one section]\n");
+    //     ph_entry_start += ph_entry_size;
+    // }
+
 	for (i = 0; i < elf->e_phnum; ++i) {
 		if ((r = seek(fd, text_start)))        return r; // set an offset
 		if ((r = readn(fd, elfbuf, size)) < 0) return r; // read an entry

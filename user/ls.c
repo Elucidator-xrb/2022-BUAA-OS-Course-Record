@@ -2,6 +2,8 @@
 
 int flag[256];
 
+// extern char pwd[1024];
+
 void lsdir(char*, char*);
 void ls1(char*, u_int, u_int, char*);
 
@@ -77,9 +79,9 @@ umain(int argc, char **argv)
 		flag[(u_char)ARGC()]++;
 		break;
 	}ARGEND
-
+//fwritef(1, "[%s]\n", pwd);
 	if (argc == 0)
-		ls("/", "");
+		ls(pwd, "");
 	else {
 		for (i=0; i<argc; i++)
 			ls(argv[i], argv[i]);
